@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import csv
+import json
 import random
 import sys
 import time
@@ -41,6 +42,7 @@ logger = get_logger(__name__)
 DATA_DIR = project_root / "data" / "exports"
 DEFAULT_INPUT = DATA_DIR / "product_url_map.csv"
 DEFAULT_OUTPUT = DATA_DIR / "product_names.csv"
+DEFAULT_JSONL_OUTPUT = DATA_DIR / "product_data.jsonl"
 WORKER_OUTPUT_DIR = DATA_DIR / "workers"
 
 # Rate limiting (faster for parallel)
@@ -62,6 +64,7 @@ def crawl_worker(worker_id: int, products: list, output_dir: Path):
     """
     # Worker files
     output_file = output_dir / f"worker_{worker_id}_names.csv"
+    data_output_file = output_dir / f"worker_{worker_id}_data.jsonl"
     checkpoint_file = output_dir / f"worker_{worker_id}_checkpoint.json"
     error_file = output_dir / f"worker_{worker_id}_errors.jsonl"
 
@@ -86,11 +89,13 @@ def crawl_worker(worker_id: int, products: list, output_dir: Path):
 
         logger.info(f"Worker {worker_id}: Browser launched")
 
-        # Prepare output file
+        # Prepare output files
         file_exists = output_file.exists()
         mode = 'a' if file_exists else 'w'
+        data_mode = 'a' if data_output_file.exists() else 'w'
 
-        with open(output_file, mode, encoding='utf-8', newline='') as f:
+        with open(output_file, mode, encoding='utf-8', newline='') as f, \
+             open(data_output_file, data_mode, encoding='utf-8') as data_f:
             writer = csv.writer(f)
 
             # Write header if new file
@@ -118,6 +123,33 @@ def crawl_worker(worker_id: int, products: list, output_dir: Path):
 
                     if product_name:
                         success_count += 1
+
+                    # Extract JavaScript data
+                    try:
+                        js_data = page.evaluate("""
+                            () => {
+                                return {
+                                    product_id: window.product?.id,
+                                    type_id: window.product?.type_id,
+                                    price_init: window.product?.price_init,
+                                    default_options: window.product?.defaultOptions,
+                                    datalayer: window.dataLayer?.find(e => e.event === 'productPage')?.product
+                                };
+                            }
+                        """)
+
+                        # Write to JSONL
+                        json_record = {
+                            "product_id": product_id,
+                            "url": url,
+                            "data": js_data
+                        }
+                        data_f.write(json.dumps(json_record, ensure_ascii=False) + '\n')
+                        data_f.flush()
+
+                    except Exception as e:
+                        logger.warning(f"Worker {worker_id}: Failed to extract JS data for {product_id}: {e}")
+                        # Continue processing
 
                 # Update checkpoint
                 processed_ids.add(product_id)
@@ -170,6 +202,27 @@ def merge_worker_outputs(output_dir: Path, final_output: Path, num_workers: int)
                     writer.writerow(row)
 
     logger.info(f" Merged output saved to: {final_output}")
+
+
+def merge_worker_jsonl_outputs(output_dir: Path, final_output: Path, num_workers: int):
+    """Merge all worker JSONL files into final output."""
+    logger.info("Merging worker JSONL outputs...")
+
+    final_output.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(final_output, 'w', encoding='utf-8') as outfile:
+        for worker_id in range(num_workers):
+            worker_file = output_dir / f"worker_{worker_id}_data.jsonl"
+
+            if not worker_file.exists():
+                logger.warning(f"Worker {worker_id} JSONL output not found: {worker_file}")
+                continue
+
+            with open(worker_file, 'r', encoding='utf-8') as infile:
+                for line in infile:
+                    outfile.write(line)
+
+    logger.info(f" Merged JSONL output saved to: {final_output}")
 
 
 def main():
@@ -251,6 +304,7 @@ def main():
 
     # Merge outputs
     merge_worker_outputs(WORKER_OUTPUT_DIR, args.output, args.workers)
+    merge_worker_jsonl_outputs(WORKER_OUTPUT_DIR, DEFAULT_JSONL_OUTPUT, args.workers)
 
     # Summary
     elapsed = time.time() - start_time
@@ -263,7 +317,8 @@ def main():
     logger.info(f"Success rate: {total_success / len(products) * 100:.2f}%")
     logger.info(f"Time elapsed: {elapsed / 60:.2f} minutes")
     logger.info(f"Speed: {len(products) / elapsed:.2f} products/second")
-    logger.info(f"Output: {args.output}")
+    logger.info(f"Output CSV: {args.output}")
+    logger.info(f"Output JSONL: {DEFAULT_JSONL_OUTPUT}")
     logger.info("=" * 60)
 
 
