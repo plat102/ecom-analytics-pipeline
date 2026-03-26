@@ -82,19 +82,25 @@ def extract_react_data(html: str) -> dict | None:
 
 def extract_product_fields(react_data: dict) -> dict:
     """
-    Extract product fields from react_data object.
+    Extract product fields from react_data object for analytics.
 
-    Extracts all simple/scalar fields. Skips complex nested structures like:
-    - options (ring sizes - too large)
-    - quick_options (nested variants)
-    - associate (related products)
-    - product_price (duplicate of price fields)
+    Focuses on fields with high analytical value. Includes:
+    - Core product info (ID, name, SKU, classification)
+    - Pricing with currency info
+    - Material properties (weights, flags)
+    - Simplified media (primary image/video only)
+    - Product flags from mentor's examples
+
+    Excludes:
+    - Large nested structures (full media arrays, dimension_guide, compare_sizes)
+    - Technical configs (option_dependent, preconfigure)
+    - Usually empty fields (super_data, designProvider, product_set)
 
     Args:
         react_data: Parsed react_data dictionary
 
     Returns:
-        dict: Extracted fields (all available simple fields)
+        dict: Extracted fields optimized for analytics (~35 fields)
     """
     result = {
         # Product identification
@@ -109,7 +115,7 @@ def extract_product_fields(react_data: dict) -> dict:
         'product_type': react_data.get('product_type'),
         'product_type_value': react_data.get('product_type_value'),
 
-        # Pricing
+        # Pricing (keep both raw and formatted for currency info)
         'price': react_data.get('price'),
         'min_price': react_data.get('min_price'),
         'max_price': react_data.get('max_price'),
@@ -133,34 +139,63 @@ def extract_product_fields(react_data: dict) -> dict:
         'category': react_data.get('category'),
         'category_name': react_data.get('category_name'),
 
-        # Store
+        # Store & Demographics
         'store_code': react_data.get('store_code'),
+        'gender': react_data.get('gender'),
 
-        # Product flags/settings
+        # Product flags (from mentor's examples)
         'platinum_palladium_info_in_alloy': react_data.get('platinum_palladium_info_in_alloy'),
         'bracelet_without_chain': react_data.get('bracelet_without_chain'),
         'show_popup_quantity_eternity': react_data.get('show_popup_quantity_eternity'),
         'visible_contents': react_data.get('visible_contents'),
-        'gender': react_data.get('gender'),
         'configure_mode': react_data.get('configure_mode'),
         'included_chain_weight': react_data.get('included_chain_weight'),
-
-        # Media
-        'media_image': react_data.get('media_image'),
-        'media_video': react_data.get('media_video'),
-
-        # Additional fields
-        'compare_sizes': react_data.get('compare_sizes'),
-        'option_dependent': react_data.get('option_dependent'),
-        'preconfigure': react_data.get('preconfigure'),
-        'attributes': react_data.get('attributes'),
-        'dimension_guide': react_data.get('dimension_guide'),
-        'attributes_link': react_data.get('attributes_link'),
-        'super_data': react_data.get('super_data'),
-        'quantity_option': react_data.get('quantity_option'),
-        'product_set': react_data.get('product_set'),
-        'discount_custom_options': react_data.get('discount_custom_options'),
-        'designProvider': react_data.get('designProvider'),
     }
+
+    # Extract currency code and tax rate from product_price
+    product_price = react_data.get('product_price')
+    if product_price and isinstance(product_price, dict):
+        result['currency_code'] = product_price.get('currencyCode')
+        result['tax_rate'] = product_price.get('currentTax')
+    else:
+        result['currency_code'] = None
+        result['tax_rate'] = None
+
+    # Extract primary image URL (simplified)
+    media_image = react_data.get('media_image')
+    if media_image and isinstance(media_image, dict):
+        images = media_image.get('images', [])
+        if images and len(images) > 0:
+            result['primary_image_url'] = images[0].get('large_image_url')
+        else:
+            result['primary_image_url'] = None
+    else:
+        result['primary_image_url'] = None
+
+    # Extract main video URL (simplified)
+    media_video = react_data.get('media_video')
+    if media_video and isinstance(media_video, dict):
+        videos = media_video.get('videos', [])
+        if videos and len(videos) > 0:
+            result['primary_video_url'] = videos[0].get('url')
+        else:
+            result['primary_video_url'] = None
+    else:
+        result['primary_video_url'] = None
+
+    # Extract key attributes only
+    attributes = react_data.get('attributes')
+    if attributes and isinstance(attributes, dict):
+        # Gender from attributes (as backup if not in root)
+        if 'gender' in attributes:
+            gender_attr = attributes['gender']
+            if isinstance(gender_attr, dict):
+                result['gender_label'] = gender_attr.get('value')
+
+        # Massiv/Solid indicator
+        if 'massiv' in attributes:
+            massiv_attr = attributes['massiv']
+            if isinstance(massiv_attr, dict):
+                result['is_solid'] = massiv_attr.get('value')
 
     return result

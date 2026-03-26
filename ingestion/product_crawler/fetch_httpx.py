@@ -1,7 +1,7 @@
 """
 Fast product data extraction using httpx + react_data parsing.
-- User-Agent rotation (12 different browsers)
-- Random delays (1-3s) to avoid pattern detection
+- User-Agent rotation
+- Random delays to avoid pattern detection
 - Sequential crawling to stay under rate limits
 
 Usage as module:
@@ -124,8 +124,11 @@ def fetch_html_with_httpx(
 def fetch_product_httpx(product_id: str, url: str, timeout: int = 30) -> dict:
     """
     Fetch product data using httpx + react_data extraction.
-
     This is the main high-level function for httpx-based crawling.
+
+    Fallback strategy:
+    - If original URL returns 404, fallback to catalog URL:
+      https://www.glamira.com/catalog/product/view/id/{product_id}
 
     Args:
         product_id: Product ID from database
@@ -134,16 +137,8 @@ def fetch_product_httpx(product_id: str, url: str, timeout: int = 30) -> dict:
 
     Returns:
         dict: Result with structure:
-            - Metadata fields (always present):
-                'product_id': str (from input, not react_data)
-                'url': str
-                'status': 'success' | 'error' | 'no_react_data'
-                'http_status': int | None
-                'error_message': str | None
-
-            - Product fields (if status='success', from extract_product_fields()):
-                43 fields including product_id, product_name, sku, price,
-                min_price, max_price, category, category_name, etc.
+            - Metadata fields (always present)
+            - Product fields (if status='success', from extract_product_fields())
     """
     result = {
         "product_id": product_id,
@@ -151,13 +146,26 @@ def fetch_product_httpx(product_id: str, url: str, timeout: int = 30) -> dict:
         "status": "error",
         "http_status": None,
         "error_message": None,
+        "fallback_used": False,
     }
 
     # Fetch HTML
     html, status_code = fetch_html_with_httpx(url, timeout=timeout)
     result["http_status"] = status_code
 
-    if html is None:
+    # If 404, fallback to catalog URL
+    if status_code == 404:
+        catalog_url = f"https://www.glamira.com/catalog/product/view/id/{product_id}"
+        logger.info(f"Product {product_id}: 404 on original URL, trying catalog URL")
+
+        html, status_code = fetch_html_with_httpx(catalog_url, timeout=timeout)
+        result["http_status"] = status_code
+        result["fallback_used"] = True
+
+        if html is None:
+            result["error_message"] = f"Failed to fetch HTML from both URLs (HTTP {status_code})"
+            return result
+    elif html is None:
         result["error_message"] = f"Failed to fetch HTML (HTTP {status_code})"
         return result
 
