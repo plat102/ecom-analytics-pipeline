@@ -10,25 +10,6 @@ Features:
 - Random delays to mimic human behavior
 - Progress tracking and checkpointing
 - Error rate monitoring
-
-Usage as script:
-    # Full crawl (default): crawl ALL products from CSV
-    poetry run python -m ingestion.product_crawler.fetch_httpx_async
-    poetry run python -m ingestion.product_crawler.fetch_httpx_async --concurrency 20
-
-    # Test mode: crawl N products
-    poetry run python -m ingestion.product_crawler.fetch_httpx_async --test 30
-    poetry run python -m ingestion.product_crawler.fetch_httpx_async --test 50 --concurrency 10
-
-    # Resume from checkpoint (not yet implemented)
-    poetry run python -m ingestion.product_crawler.fetch_httpx_async --resume
-
-Usage as module:
-    import asyncio
-    from ingestion.product_crawler.fetch_httpx_async import crawl_products_async
-
-    products = [("110474", "https://..."), ("85796", "https://...")]
-    results = asyncio.run(crawl_products_async(products, concurrency=20))
 """
 
 import asyncio
@@ -229,7 +210,7 @@ async def crawl_products_async(
     # Create shared async client with connection pooling
     async with httpx.AsyncClient(
         http2=True,
-        timeout=30.0,
+        timeout=60.0,  # Increased from 30s to handle retries
         follow_redirects=True,
         limits=httpx.Limits(
             max_connections=concurrency,
