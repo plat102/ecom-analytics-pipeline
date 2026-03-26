@@ -7,8 +7,8 @@ Fast product data extraction using httpx + react_data parsing.
 Usage as module:
     from ingestion.product_crawler.fetch_httpx import fetch_product_httpx
     result = fetch_product_httpx(
-        product_id="99021",
-        url="https://www.glamira.pt/glamira-ring-amazing-trust-5-mm.html"
+        --product-id 110474 \
+        --url "https://www.glamira.fr/glamira-pendant-viktor.html?alloy=yellow-375"
     )
 
 Usage as script (test mode):
@@ -17,8 +17,8 @@ Usage as script (test mode):
 
     # Test single URL
     poetry run python -m ingestion.product_crawler.fetch_httpx \
-        --product-id 99021 \
-        --url "https://www.glamira.pt/glamira-ring-amazing-trust-5-mm.html"
+        --product-id 110474 \
+        --url "https://www.glamira.fr/glamira-pendant-viktor.html?alloy=yellow-375"
 
     # Quick test (no args)
     poetry run python -m ingestion.product_crawler.fetch_httpx
