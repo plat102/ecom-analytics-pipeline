@@ -141,12 +141,13 @@ async def fetch_product_async(
         html, status_code = await fetch_html_async(client, url)
         result["http_status"] = status_code
 
-        # Handle rate limiting (429) with exponential backoff
-        if status_code == 429:
+        # Handle retryable errors (403/429/503) with exponential backoff
+        if status_code in [403, 429, 503]:
             if retry_count < MAX_RETRIES:
                 backoff_time = BACKOFF_BASE ** (retry_count + 1)
+                error_names = {403: "Forbidden", 429: "Rate limited", 503: "Server error"}
                 logger.warning(
-                    f"Rate limited (429) for product {product_id}, "
+                    f"{error_names[status_code]} ({status_code}) for product {product_id}, "
                     f"retry {retry_count + 1}/{MAX_RETRIES} after {backoff_time}s"
                 )
                 await asyncio.sleep(backoff_time)
@@ -154,23 +155,12 @@ async def fetch_product_async(
                     client, product_id, url, semaphore, retry_count + 1
                 )
             else:
-                result["error_message"] = f"Rate limited after {MAX_RETRIES} retries"
-                return result
-
-        # Handle server errors (503) with backoff
-        if status_code == 503:
-            if retry_count < MAX_RETRIES:
-                backoff_time = BACKOFF_BASE ** (retry_count + 1)
-                logger.warning(
-                    f"Server error (503) for product {product_id}, "
-                    f"retry {retry_count + 1}/{MAX_RETRIES} after {backoff_time}s"
-                )
-                await asyncio.sleep(backoff_time)
-                return await fetch_product_async(
-                    client, product_id, url, semaphore, retry_count + 1
-                )
-            else:
-                result["error_message"] = f"Server error after {MAX_RETRIES} retries"
+                error_msgs = {
+                    403: "Forbidden after retries (WAF/IP blocking)",
+                    429: "Rate limited after retries",
+                    503: "Server error after retries"
+                }
+                result["error_message"] = f"{error_msgs[status_code]} ({MAX_RETRIES} attempts)"
                 return result
 
         # Handle 404 with catalog fallback
