@@ -1,138 +1,155 @@
 """
 Shared utilities for product crawling.
-- Fetching (Playwright)
-- Checkpoint management
-- Error logging
 
-Note: Parsing functions moved to parsers.py
+- Constants (User-Agents, rate limiting configs)
+- Checkpoint management
+- Helper functions
 """
 
 import json
-import time
 from datetime import datetime, UTC
 from pathlib import Path
-
-from playwright.sync_api import Page
+from typing import List, Dict, Tuple
 
 from common.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Crawler settings
-PAGE_TIMEOUT = 60000  # 60 seconds
-MAX_RETRIES = 3
+# ============================================================================
+# CONSTANTS
+# ============================================================================
+
+# User-Agent pool (12 browsers for rotation)
+USER_AGENTS = [
+    # Chrome on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+    # Chrome on Mac
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+    # Firefox on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
+    # Firefox on Mac
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:120.0) Gecko/20100101 Firefox/120.0",
+    # Safari on Mac
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+    # Edge on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
+]
+
+# Rate limiting
+DELAY_MIN = 0.5  # Minimum delay between requests (seconds)
+DELAY_MAX = 1.5  # Maximum delay between requests (seconds)
+
+# Retry settings
+MAX_RETRIES = 3  # Max retries for 429/503 errors
+BACKOFF_BASE = 2  # Exponential backoff base (seconds)
+
+# Checkpoint settings
 CHECKPOINT_INTERVAL = 100  # Save checkpoint every N products
 
-
-def log_error(error_file: Path, product_id: str, url: str, error_type: str, **kwargs):
-    """Append error to JSONL log."""
-    error_record = {
-        "product_id": product_id,
-        "url": url,
-        "error_type": error_type,
-        "timestamp": datetime.now(UTC).isoformat(),
-        **kwargs
-    }
-
-    error_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(error_file, 'a', encoding='utf-8') as f:
-        f.write(json.dumps(error_record, ensure_ascii=False) + '\n')
+# File paths
+project_root = Path(__file__).parent.parent.parent
+INPUT_FILE = project_root / "data" / "exports" / "product_url_map.csv"
+CHECKPOINT_FILE = project_root / "data" / "exports" / "crawl_checkpoint.json"
 
 
-def save_checkpoint(checkpoint_file: Path, processed_ids: set, count: int, mode: str = "normal"):
-    """Save checkpoint with set of processed product IDs."""
-    checkpoint = {
-        "processed_ids": list(processed_ids),
-        "processed_count": count,
-        "timestamp": datetime.now(UTC).isoformat(),
-        "mode": mode
-    }
+# ============================================================================
+# CHECKPOINT MANAGEMENT
+# ============================================================================
 
-    checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(checkpoint_file, 'w', encoding='utf-8') as f:
-        json.dump(checkpoint, f, indent=2)
-
-
-def load_checkpoint(checkpoint_file: Path):
-    """Load checkpoint with set of processed product IDs."""
-    if not checkpoint_file.exists():
-        return set(), 0
-
-    try:
-        with open(checkpoint_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            processed_ids = set(data.get("processed_ids", []))
-            count = data.get("processed_count", 0)
-            return processed_ids, count
-    except (json.JSONDecodeError, Exception) as e:
-        logger.warning(f"Failed to load checkpoint: {e}")
-        return set(), 0
-
-
-def fetch_html_with_playwright(page: Page, url: str, product_id: str, error_file: Path):
+def save_checkpoint(checkpoint_file: Path, results: List[Dict]) -> None:
     """
-    Fetch HTML using Playwright with retry logic and HTTP status checking.
+    Save checkpoint with full results for resuming crawl.
 
     Args:
-        page: Playwright Page instance
-        url: URL to fetch
-        product_id: Product ID for logging
-        error_file: Path to error log file
+        checkpoint_file: Path to checkpoint file
+        results: List of result dicts
+    """
+    checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
+
+    checkpoint = {
+        "version": "2.0",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "total_products": len(results),
+        "results": results
+    }
+
+    with open(checkpoint_file, "w", encoding="utf-8") as f:
+        json.dump(checkpoint, f, indent=2, ensure_ascii=False)
+
+    logger.info(f"Checkpoint saved: {len(results)} products")
+
+
+def load_checkpoint(checkpoint_file: Path) -> List[Dict]:
+    """
+    Load checkpoint if exists.
+
+    Args:
+        checkpoint_file: Path to checkpoint file
 
     Returns:
-        str | None: HTML content or None if failed
+        List of result dicts (empty if no checkpoint)
     """
-    for attempt in range(MAX_RETRIES):
-        try:
-            response = page.goto(url, timeout=PAGE_TIMEOUT, wait_until="domcontentloaded")
+    if not checkpoint_file.exists():
+        return []
 
-            if response:
-                status = response.status
+    try:
+        with open(checkpoint_file, "r", encoding="utf-8") as f:
+            checkpoint = json.load(f)
 
-                if status == 200:
-                    return page.content()
+        # Handle both v1 and v2 formats
+        if "results" in checkpoint:
+            results = checkpoint["results"]
+        else:
+            # Old format compatibility
+            results = checkpoint if isinstance(checkpoint, list) else []
 
-                elif status == 404:
-                    # Not found - no point retrying
-                    log_error(error_file, product_id, url, "HTTPError", status=404, message="Not Found")
-                    logger.warning(f"HTTP 404 for {product_id} - not found")
-                    return None
+        logger.info(f"Loaded checkpoint: {len(results)} products")
+        return results
 
-                elif status in [403, 429, 500, 502, 503]:
-                    # Retry-able errors (rate limit, server errors, forbidden)
-                    if attempt < MAX_RETRIES - 1:
-                        wait = 2 ** attempt
-                        logger.warning(f"HTTP {status} for {product_id}, retry {attempt + 1}/{MAX_RETRIES} in {wait}s")
-                        time.sleep(wait)
-                        continue
-                    else:
-                        # Final attempt failed
-                        log_error(error_file, product_id, url, "HTTPError", status=status, message="Max retries exceeded")
-                        logger.warning(f"HTTP {status} for {product_id} - max retries exceeded")
-                        return None
+    except (json.JSONDecodeError, Exception) as e:
+        logger.warning(f"Failed to load checkpoint: {e}")
+        return []
 
-                else:
-                    log_error(error_file, product_id, url, "HTTPError", status=status)
-                    logger.warning(f"HTTP {status} for {product_id}")
-                    return None
 
-        except Exception as e:
-            error_msg = str(e)
+def get_processed_ids(results: List[Dict]) -> set:
+    """
+    Extract set of processed product IDs from results.
 
-            if attempt < MAX_RETRIES - 1:
-                wait = 2 ** attempt
-                logger.warning(f"Error for {product_id} (attempt {attempt + 1}/{MAX_RETRIES}): {error_msg[:100]}, retry in {wait}s")
-                time.sleep(wait)
-                continue
-            else:
-                if "Timeout" in error_msg:
-                    log_error(error_file, product_id, url, "Timeout", message=error_msg)
-                elif "net::ERR" in error_msg:
-                    log_error(error_file, product_id, url, "NetworkError", message=error_msg)
-                else:
-                    log_error(error_file, product_id, url, "UnknownError", message=error_msg)
+    Args:
+        results: List of result dicts
 
-                logger.warning(f"Failed for {product_id} after {MAX_RETRIES} attempts: {error_msg[:100]}")
-                return None
+    Returns:
+        Set of product_ids
+    """
+    return {r["product_id"] for r in results if "product_id" in r}
 
-    return None
+
+# ============================================================================
+# BROWSER HEADERS
+# ============================================================================
+
+def get_browser_headers() -> Dict[str, str]:
+    """
+    Get full browser headers to bypass anti-bot detection.
+
+    Returns:
+        Dict of HTTP headers
+    """
+    return {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webeb,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9,pt;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Cache-Control": "max-age=0",
+    }
