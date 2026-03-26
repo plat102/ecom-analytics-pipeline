@@ -97,7 +97,7 @@ async def fetch_product_async(
     """
     Fetch single product with retry logic, 404 fallback, and rate limiting.
 
-    Uses while loop instead of recursion to avoid semaphore deadlock.
+    Uses while loop with flag-based backoff to avoid semaphore deadlock.
 
     Args:
         client: Shared AsyncClient
@@ -121,21 +121,29 @@ async def fetch_product_async(
 
     # Retry loop - avoids semaphore deadlock from recursion
     while retry_count <= MAX_RETRIES:
+        need_backoff = False
+        backoff_time = 0
+
         async with semaphore:  # Acquire semaphore for each attempt
             # Fetch HTML
             html, status_code = await fetch_html_async(client, url)
             result["http_status"] = status_code
 
-            # Handle retryable errors (403/429/503) with exponential backoff
+            # Handle retryable errors (403/429/503) -> Mark for backoff
             if status_code in [403, 429, 503] and retry_count < MAX_RETRIES:
                 retry_count += 1
                 backoff_time = BACKOFF_BASE ** retry_count
-                error_names = {403: "Forbidden", 429: "Rate limited", 503: "Server error"}
-                logger.warning(
-                    f"{error_names[status_code]} ({status_code}) for product {product_id}, "
-                    f"retry {retry_count}/{MAX_RETRIES} after {backoff_time}s"
-                )
-                # Sleep OUTSIDE semaphore (after releasing it)
+                need_backoff = True
+
+                # Special handling for 403: Switch to clean catalog URL (bypass WAF)
+                if status_code == 403:
+                    catalog_url = f"https://www.glamira.com/catalog/product/view/id/{product_id}"
+                    logger.info(
+                        f"Product {product_id}: 403 blocked, "
+                        f"switching to catalog URL for retry {retry_count}/{MAX_RETRIES}"
+                    )
+                    url = catalog_url  # Reassign URL for next iteration
+                    result["fallback_used"] = True
 
             # Handle 404 with catalog fallback
             elif status_code == 404:
@@ -149,23 +157,17 @@ async def fetch_product_async(
                 if html is None:
                     result["error_message"] = f"Failed from both URLs (HTTP {status_code})"
                     return result
-                # Continue to extract data from fallback
 
+            # Non-retryable error or max retries exceeded
             elif html is None:
-                # Non-retryable error or max retries exceeded
                 if status_code in [403, 429, 503]:
-                    error_msgs = {
-                        403: "Forbidden after retries (WAF/IP blocking)",
-                        429: "Rate limited after retries",
-                        503: "Server error after retries"
-                    }
-                    result["error_message"] = f"{error_msgs[status_code]} ({MAX_RETRIES} attempts)"
+                    result["error_message"] = f"Rate limited/Forbidden after {MAX_RETRIES} attempts"
                 else:
                     result["error_message"] = f"Failed to fetch HTML (HTTP {status_code})"
                 return result
 
-            # If we have HTML, try to extract data
-            if html:
+            # Extract data (only if we have HTML and not flagged for backoff)
+            if html and not need_backoff:
                 # Extract react_data
                 react_data = extract_react_data(html)
 
@@ -182,15 +184,20 @@ async def fetch_product_async(
                 # Preserve input product_id (database ID is source of truth)
                 result["product_id"] = product_id
 
-                # Random delay to mimic human behavior
+                # Random delay to mimic human behavior (inside semaphore to maintain rate limit)
                 delay = random.uniform(DELAY_MIN, DELAY_MAX)
                 await asyncio.sleep(delay)
 
                 return result
 
-        # Sleep OUTSIDE semaphore to avoid blocking
-        if retry_count > 0 and retry_count <= MAX_RETRIES and result["status"] == "error":
-            backoff_time = BACKOFF_BASE ** retry_count
+        # --- EXIT SEMAPHORE BLOCK ---
+        # Perform backoff sleep WITHOUT holding semaphore
+        if need_backoff:
+            error_names = {403: "Forbidden", 429: "Rate limited", 503: "Server error"}
+            logger.warning(
+                f"{error_names.get(status_code, 'Error')} ({status_code}) for product {product_id}, "
+                f"retry {retry_count}/{MAX_RETRIES} after {backoff_time}s"
+            )
             await asyncio.sleep(backoff_time)
 
     # Max retries exceeded
