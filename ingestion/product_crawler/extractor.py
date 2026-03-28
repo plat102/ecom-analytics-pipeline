@@ -130,7 +130,7 @@ def extract_product_urls(output_file: Path = None) -> int:
         for pid, url in product_urls.items():
             writer.writerow([pid, url])
 
-    logger.info(f"Export complete: {len(product_urls)} products → {output_file.name}")
+    logger.info(f"Export complete: {len(product_urls)} products -> {output_file.name}")
 
     mongo_client.close()
 

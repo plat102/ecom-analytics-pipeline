@@ -23,6 +23,7 @@ Usage:
 import sys
 import argparse
 import asyncio
+from pathlib import Path
 
 from common.utils.logger import get_logger
 
@@ -143,7 +144,7 @@ Examples:
     # ========================================================================
     pipeline_parser = subparsers.add_parser(
         "pipeline",
-        help="Run complete pipeline: extract → crawl → retry"
+        help="Run complete pipeline: extract -> crawl -> retry -> upload"
     )
     pipeline_parser.add_argument(
         "--test",
@@ -161,18 +162,48 @@ Examples:
         action="store_true",
         help="Skip retry step"
     )
+    pipeline_parser.add_argument(
+        "--upload",
+        action="store_true",
+        help="Upload results to GCS after completion"
+    )
+
+    # ========================================================================
+    # UPLOAD command (upload existing files to GCS)
+    # ========================================================================
+    upload_parser = subparsers.add_parser(
+        "upload",
+        help="Upload results to Google Cloud Storage"
+    )
+    upload_parser.add_argument(
+        "--file",
+        type=str,
+        required=True,
+        help="File to upload (e.g., data/exports/full_crawl_results.json)"
+    )
+    upload_parser.add_argument(
+        "--bucket",
+        type=str,
+        help="GCS bucket name (default: from config)"
+    )
+    upload_parser.add_argument(
+        "--destination",
+        type=str,
+        help="Destination path in GCS (default: auto-generated from filename)"
+    )
 
     return parser
 
 
 async def run_pipeline(args):
-    """Run complete pipeline: extract → crawl → retry."""
-    from pathlib import Path
+    """Run complete pipeline: extract -> crawl -> retry -> upload."""
     from ingestion.product_crawler import config
 
     logger.info("=" * 70)
     logger.info("RUNNING COMPLETE PIPELINE")
     logger.info("=" * 70)
+
+    final_output_file = None
 
     # Step 1: Extract URLs (optional)
     if not args.skip_extract:
@@ -197,26 +228,82 @@ async def run_pipeline(args):
     if exit_code != 0:
         logger.warning(f"Crawl completed with warnings (exit code: {exit_code})")
 
+    # Determine output file for upload (use constants from config)
+    final_output_file = config.FULL_CRAWL_OUTPUT
+
     # Step 3: Retry (optional)
     if not args.skip_retry:
         logger.info("\n>>> STEP 3: RETRY FAILED PRODUCTS <<<")
         from ingestion.product_crawler.retry import retry_failed_products, merge_results
 
-        input_file = config.OUTPUT_DIR / "full_crawl_results.json"
-        output_file = config.OUTPUT_DIR / "retry_failed_results.json"
-        merged_file = config.OUTPUT_DIR / "full_crawl_results_merged.json"
-
-        retry_results = await retry_failed_products(input_file, output_file)
+        retry_results = await retry_failed_products(
+            config.FULL_CRAWL_OUTPUT,
+            config.RETRY_OUTPUT
+        )
 
         if retry_results:
-            merge_results(input_file, output_file, merged_file)
-            logger.info(f"Final results: {merged_file}")
+            merge_results(
+                config.FULL_CRAWL_OUTPUT,
+                config.RETRY_OUTPUT,
+                config.MERGED_OUTPUT
+            )
+            logger.info(f"Final results: {config.MERGED_OUTPUT}")
+            final_output_file = config.MERGED_OUTPUT  # Use merged file for upload
     else:
         logger.info("\n>>> STEP 3: SKIPPED (no retry) <<<")
+
+    # Step 4: Upload to GCS (optional)
+    if args.upload:
+        logger.info("\n>>> STEP 4: UPLOAD TO GCS <<<")
+        upload_result_file(final_output_file)
+    else:
+        logger.info("\n>>> STEP 4: SKIPPED (no upload) <<<")
 
     logger.info("\n" + "=" * 70)
     logger.info("PIPELINE COMPLETE!")
     logger.info("=" * 70)
+
+
+def upload_result_file(file_path: Path) -> bool:
+    """
+    Upload a result file to GCS.
+
+    Args:
+        file_path: Path to file to upload
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    from datetime import date
+    from ingestion.product_crawler import config
+    from common.storage import upload_to_gcs
+
+    if not file_path.exists():
+        logger.error(f"File not found: {file_path}")
+        return False
+
+    # Generate destination blob name with date
+    # Format: raw/glamira/products/YYYYMMDD/filename.json
+    today = date.today().strftime("%Y%m%d")
+    destination = f"{config.GCS_DESTINATION_PREFIX}/{today}/{file_path.name}"
+
+    logger.info(f"Uploading {file_path.name} to GCS...")
+    logger.info(f"  Bucket: {config.GCS_BUCKET_NAME}")
+    logger.info(f"  Destination: {destination}")
+
+    success = upload_to_gcs(
+        local_file_path=file_path,
+        bucket_name=config.GCS_BUCKET_NAME,
+        destination_blob_name=destination,
+        overwrite=True
+    )
+
+    if success:
+        logger.info(f"Upload successful: gs://{config.GCS_BUCKET_NAME}/{destination}")
+    else:
+        logger.error("Upload failed")
+
+    return success
 
 
 def main():
@@ -231,14 +318,12 @@ def main():
 
     # Route to appropriate handler
     if args.command == "extract":
-        from pathlib import Path
         from ingestion.product_crawler.extractor import extract_product_urls
 
         output_file = Path(args.output) if args.output else None
         extract_product_urls(output_file)
 
     elif args.command == "crawl":
-        from pathlib import Path
         from ingestion.product_crawler.crawler import run_crawl
 
         output_file = Path(args.output) if args.output else None
@@ -259,6 +344,46 @@ def main():
 
     elif args.command == "pipeline":
         asyncio.run(run_pipeline(args))
+
+    elif args.command == "upload":
+        from datetime import date
+        from ingestion.product_crawler import config
+        from common.storage import upload_to_gcs
+
+        # Parse file path
+        file_path = Path(args.file)
+
+        if not file_path.exists():
+            logger.error(f"File not found: {file_path}")
+            sys.exit(1)
+
+        # Determine bucket
+        bucket_name = args.bucket if args.bucket else config.GCS_BUCKET_NAME
+
+        # Determine destination
+        if args.destination:
+            destination = args.destination
+        else:
+            # Auto-generate: raw/glamira/products/YYYYMMDD/filename.json
+            today = date.today().strftime("%Y%m%d")
+            destination = f"{config.GCS_DESTINATION_PREFIX}/{today}/{file_path.name}"
+
+        logger.info(f"Uploading: {file_path}")
+        logger.info(f"  -> gs://{bucket_name}/{destination}")
+
+        success = upload_to_gcs(
+            local_file_path=file_path,
+            bucket_name=bucket_name,
+            destination_blob_name=destination,
+            overwrite=True
+        )
+
+        if success:
+            logger.info("Upload successful")
+            sys.exit(0)
+        else:
+            logger.error("Upload failed")
+            sys.exit(1)
 
     else:
         parser.print_help()

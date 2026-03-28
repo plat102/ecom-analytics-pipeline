@@ -21,6 +21,17 @@ OUTPUT_DIR = settings.DATA_EXPORTS_DIR
 INPUT_FILE = OUTPUT_DIR / "product_url_map.csv"
 CHECKPOINT_FILE = OUTPUT_DIR / "crawl_checkpoint.json"
 
+# Crawl output files
+FULL_CRAWL_OUTPUT = OUTPUT_DIR / "full_crawl_results.json"
+
+# Retry (DLQ) output files
+RETRY_OUTPUT = OUTPUT_DIR / "retry_failed_results.json"
+RETRY_CURLCFFI_OUTPUT = OUTPUT_DIR / "retry_curlcffi_results.json"
+
+# Merged results (after retry)
+MERGED_OUTPUT = OUTPUT_DIR / "full_crawl_results_merged.json"
+MERGED_OUTPUT_LEVEL2 = OUTPUT_DIR / "full_crawl_results_merged2.json"  # After curl_cffi retry
+
 # ============================================================================
 # CONCURRENCY SETTINGS
 # ============================================================================
@@ -94,3 +105,17 @@ TRACKING_PARAMS = [
     'gclid', 'gclsrc', '_ga', 'mc_cid', 'mc_eid',
     'msclkid', 'zanpid', 'aff_id', 'ref', 'source'
 ]
+
+# ============================================================================
+# GOOGLE CLOUD STORAGE SETTINGS
+# ============================================================================
+
+# GCS bucket name (should be configured via environment variable on server)
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "ecom-analytics-data-lake")
+
+# Destination prefix on GCS (Data Lake path structure)
+# Format: raw/glamira/products/ -> organized by source/domain/data_type
+GCS_DESTINATION_PREFIX = os.getenv("GCS_DESTINATION_PREFIX", "raw/glamira/products")
+
+# Auto-upload to GCS after crawling (default: False, enable via env var)
+AUTO_UPLOAD_TO_GCS = os.getenv("AUTO_UPLOAD_TO_GCS", "false").lower() in ("true", "1", "yes")
