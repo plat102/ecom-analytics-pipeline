@@ -211,18 +211,26 @@ def retry_403_with_curlcffi(
     results = []
     start = time.time()
 
-    def fetch_one(product_id: str, url: str) -> Dict:
-        """Fetch single product with curl_cffi."""
+    def fetch_one(product_id: str, original_url: str) -> Dict:
+        """
+        Fetch single product with curl_cffi using stable catalog URL.
+
+        Uses catalog endpoint to avoid geo-blocking (403 from regional domains).
+        """
+        # Use catalog URL (stable endpoint, no geo-blocking)
+        catalog_url = f"https://www.glamira.com/catalog/product/view/id/{product_id}"
+
         result = {
             "product_id": product_id,
-            "url": url,
+            "url": original_url,  # Keep original URL for reference
             "status": "error",
-            "tool": "curl_cffi"
+            "tool": "curl_cffi",
+            "fallback_used": True  # Mark that we used catalog URL
         }
 
         try:
             resp = curl_requests.get(
-                url,
+                catalog_url,  # Use catalog URL instead of original
                 headers=get_browser_headers(),
                 impersonate="chrome120",
                 timeout=30
@@ -235,8 +243,9 @@ def retry_403_with_curlcffi(
 
             # Use unified HTML processor (DRY)
             html = resp.text
-            result = process_html_to_product(html, product_id, url)
+            result = process_html_to_product(html, product_id, original_url)
             result["tool"] = "curl_cffi"  # Mark tool used
+            result["fallback_used"] = True  # Mark catalog URL usage
             return result
 
         except Exception as e:
@@ -246,7 +255,7 @@ def retry_403_with_curlcffi(
     # Process with threading
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
         futures = {
-            executor.submit(fetch_one, r["product_id"], clean_url(r["url"])): r
+            executor.submit(fetch_one, r["product_id"], r["url"]): r
             for r in failed_403
         }
 
