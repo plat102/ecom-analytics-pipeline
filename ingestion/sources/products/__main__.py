@@ -309,18 +309,18 @@ def upload_result_file(file_path: Path) -> bool:
     destination = f"{config.GCS_DESTINATION_PREFIX}/{today}/{file_path.name}"
 
     logger.info(f"Uploading {file_path.name} to GCS...")
-    logger.info(f"  Bucket: {config.GCS_BUCKET_NAME}")
+    logger.info(f"  Bucket: {config.GCS_BUCKET}")
     logger.info(f"  Destination: {destination}")
 
     success = upload_to_gcs(
         local_file_path=file_path,
-        bucket_name=config.GCS_BUCKET_NAME,
+        bucket_name=config.GCS_BUCKET,
         destination_blob_name=destination,
         overwrite=True
     )
 
     if success:
-        logger.info(f"Upload successful: gs://{config.GCS_BUCKET_NAME}/{destination}")
+        logger.info(f"Upload successful: gs://{config.GCS_BUCKET}/{destination}")
     else:
         logger.error("Upload failed")
 
@@ -438,7 +438,7 @@ def main():
             sys.exit(1)
 
         # Determine bucket
-        bucket_name = args.bucket if args.bucket else config.GCS_BUCKET_NAME
+        bucket_name = args.bucket if args.bucket else config.GCS_BUCKET
 
         # Determine destination
         if args.destination:
