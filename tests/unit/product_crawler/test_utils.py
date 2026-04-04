@@ -4,10 +4,15 @@ Unit tests for utils.py - Utility functions.
 These tests validate helper functions without external dependencies.
 """
 
+from pathlib import Path
+
 from ingestion.sources.products.utils import (
     clean_url,
     summarize_results,
     get_browser_headers,
+    save_checkpoint,
+    load_checkpoint,
+    get_processed_ids,
 )
 
 
