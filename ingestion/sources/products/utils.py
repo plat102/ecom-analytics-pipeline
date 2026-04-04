@@ -2,14 +2,12 @@
 Shared utilities for product crawling.
 
 - Data processing helpers
-- Checkpoint management
+- Checkpoint management (wraps shared checkpoint for products-specific interface)
 - URL cleaning and headers
 """
 
-import json
-from datetime import datetime, UTC
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 from common.utils.logger import get_logger
 from ingestion.sources.products.config import TRACKING_PARAMS
@@ -111,19 +109,14 @@ def save_checkpoint(checkpoint_file: Path, results: List[Dict]) -> None:
         checkpoint_file: Path to checkpoint file
         results: List of result dicts
     """
-    checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
+    from ingestion.shared.checkpoint import save_checkpoint as save_checkpoint_generic
 
-    checkpoint = {
-        "version": "2.0",
-        "timestamp": datetime.now(UTC).isoformat(),
+    data = {
         "total_products": len(results),
         "results": results
     }
 
-    with open(checkpoint_file, "w", encoding="utf-8") as f:
-        json.dump(checkpoint, f, indent=2, ensure_ascii=False)
-
-    logger.info(f"Checkpoint saved: {len(results)} products")
+    save_checkpoint_generic(checkpoint_file, data)
 
 
 def load_checkpoint(checkpoint_file: Path) -> List[Dict]:
@@ -136,26 +129,22 @@ def load_checkpoint(checkpoint_file: Path) -> List[Dict]:
     Returns:
         List of result dicts (empty if no checkpoint)
     """
-    if not checkpoint_file.exists():
+    from ingestion.shared.checkpoint import load_checkpoint as load_checkpoint_generic
+
+    checkpoint = load_checkpoint_generic(checkpoint_file)
+
+    if checkpoint is None:
         return []
 
-    try:
-        with open(checkpoint_file, "r", encoding="utf-8") as f:
-            checkpoint = json.load(f)
+    # Extract results from checkpoint data
+    if "results" in checkpoint:
+        return checkpoint["results"]
 
-        # Handle both v1 and v2 formats
-        if "results" in checkpoint:
-            results = checkpoint["results"]
-        else:
-            # Old format compatibility
-            results = checkpoint if isinstance(checkpoint, list) else []
+    # Old format compatibility (direct list)
+    if isinstance(checkpoint, list):
+        return checkpoint
 
-        logger.info(f"Loaded checkpoint: {len(results)} products")
-        return results
-
-    except (json.JSONDecodeError, Exception) as e:
-        logger.warning(f"Failed to load checkpoint: {e}")
-        return []
+    return []
 
 
 def get_processed_ids(results: List[Dict]) -> set:
