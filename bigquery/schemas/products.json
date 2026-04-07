@@ -1,0 +1,14 @@
+[
+  {
+    "name": "raw_doc",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Product data as JSON"
+  },
+  {
+    "name": "ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp when data was ingested to BigQuery"
+  }
+]

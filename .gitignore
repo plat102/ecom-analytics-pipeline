@@ -161,7 +161,6 @@ logs/
 
 # Data files
 *.csv
-*.json
 *.parquet
 *.avro
 *.tar.gz
