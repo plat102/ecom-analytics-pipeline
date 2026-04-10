@@ -159,8 +159,6 @@ Country/region localized websites (Top-Level domains)
 
 ---
 
-## Sample-based Analysis
-
 *Metrics based on random sampling for performance*
 
 **Why Sampling?**
@@ -177,64 +175,237 @@ With 41M+ documents, analyzing the full collection would be slow. We use statist
 
 ---
 
-### Fields List
+## Fields List
 
-**Total Fields:** 32
-- User data: 9 fields
-- Interaction data: 23 fields
-  
-**Sampling Method:** Stratified sampling (10 docs per event type)
+**Total Fields:** 57 (Updated 2026-04-08)
+- **Top-level fields:** 32
+- **Nested fields:** 25 (option.*, option[], cart_products[])
 
-#### User Data
+**Sampling Method:** Stratified sampling (100 docs per event type, 2700 total)
 
-Information about the user, session, and context.
+**Scripts:**
+- [discover_all_fields.py](../scripts/explore_raw_glamira/discover_all_fields.py)
+- [export_sample_events.py](../scripts/explore_raw_glamira/export_sample_events.py)
 
-| Field Name      | Data Type(s)     | Category       | Notes                                        |
-|-----------------|------------------|----------------|----------------------------------------------|
-| `device_id`     | string           | Identity       | User device UUID                             |
-| `user_id_db`    | string           | Identity       | User ID in database                          |
-| `email_address` | string           | Identity       | User email (when available)                  |
-| `ip`            | string           | Identity       | User IP address                              |
-| `store_id`      | string           | Context        | Store/locale ID (86 distinct values)         |
-| `user_agent`    | string           | Context        | Browser user agent                           |
-| `resolution`    | string           | Context        | Screen resolution (e.g., 1920x1080)          |
-| `utm_source`    | boolean, string  | Context        | UTM source for marketing attribution         |
-| `utm_medium`    | boolean, string  | Context        | UTM medium for marketing attribution         |
 
-#### Interaction Data
 
-Events, products, cart, recommendations, and system metadata.
+### Field Presence Summary
 
-| Field Name                        | Data Type(s)          | Category       | Notes                                          |
-|-----------------------------------|-----------------------|----------------|------------------------------------------------|
-| `_id`                             | object (ObjectId)     | System         | MongoDB document ID                            |
-| `api_version`                     | string                | System         | "1.0"                                          |
-| `collect_id`                      | string                | System         | Collection ID                                  |
-| `collection`                      | string                | System         | Event type (27 distinct values)                |
-| `time_stamp`                      | number                | System         | Unix timestamp (seconds)                       |
-| `local_time`                      | string                | System         | Local timestamp (e.g., "2020-06-04 12:21:27")  |
-| `current_url`                     | string                | Navigation     | Current page URL                               |
-| `referrer_url`                    | string                | Navigation     | Referrer URL (source page)                     |
-| `product_id`                      | string                | Product        | Product ID                                     |
-| `viewing_product_id`              | string                | Product        | Currently viewed product ID                    |
-| `option`                          | object (array/object) | Product        | Product options selected                       |
-| `price`                           | string                | Product        | Product price (locale-formatted)               |
-| `currency`                        | string                | Product        | Currency symbol (€, $, £, kr)                  |
-| `cat_id`                          | object (null)         | Product        | Category ID (mostly null)                      |
-| `key_search`                      | object (null/string)  | Product        | Search keyword                                 |
-| `cart_products`                   | object (array)        | Cart/Checkout  | Array of products in cart                      |
-| `order_id`                        | string                | Cart/Checkout  | Order ID for checkout events                   |
-| `is_paypal`                       | object (null/boolean) | Cart/Checkout  | PayPal payment flag                            |
-| `recommendation`                  | boolean               | Recommendation | Recommendation flag                            |
-| `show_recommendation`             | string                | Recommendation | Recommendation visibility flag                 |
-| `recommendation_product_id`       | string                | Recommendation | Recommended product ID                         |
-| `recommendation_product_position` | number                | Recommendation | Position in recommendation list                |
-| `recommendation_clicked_position` | object (number/null)  | Recommendation | Position of clicked recommendation             |
+Quick reference showing which fields appear in which event types.
 
-**Method:** Stratified sampling (10 docs per event type to ensure all fields captured)
-- **Script:** [04_field_list.js](../scripts/explore_raw_glamira/04_field_list.js)
+| Field                                                          | Coverage | Key Event Types                          |
+|----------------------------------------------------------------|----------|------------------------------------------|
+| **Universal fields (100%)**                                    | 27/27    | All events                               |
+| `_id`, `device_id`, `user_id_db`, `email_address`, `ip`        |          |                                          |
+| `store_id`, `user_agent`, `resolution`                         |          |                                          |
+| `api_version`, `collection`, `time_stamp`, `local_time`        |          |                                          |
+| `current_url`, `referrer_url`, `show_recommendation`           |          |                                          |
+| **Product fields (22-37%)**                                    | 6-10/27  | Product interaction events               |
+| `product_id`, `option`                                         |          | select_option, view_product, add_to_cart |
+| **Cart fields (7-11%)**                                        | 2-3/27   | Checkout flow                            |
+| `cart_products`, `order_id`                                    |          | checkout, checkout_success, view_cart    |
+| **Recommendation fields (4-19%)**                              | 1-5/27   | Recommendation tracking                  |
+| `recommendation_product_id`, `recommendation_clicked_position` |          | *_recommendation_* events                |
+| **Rare fields (<15%)**                                         | 1-4/27   | Specific contexts                        |
+| `utm_source`, `utm_medium`, `key_search`, `currency`, `price`  |          | Varies by event                          |
+
+**Full matrix:** 27 event types × 32 top-level fields (see end of section)
 
 ---
+
+### Category 1: User Data (10 fields)
+
+Information about the user, device, session context, and marketing attribution.
+
+#### 1.1 Identity & Session (5 fields)
+
+User identification across devices and sessions.
+
+| Field Name      | MongoDB Type     | BigQuery Type | Coverage | Notes                                        |
+|-----------------|------------------|---------------|----------|----------------------------------------------|
+| `_id`           | ObjectId         | STRING        | 100%     | MongoDB document ID (convert to string)      |
+| `device_id`     | string           | STRING        | 100%     | User device UUID                             |
+| `user_id_db`    | string           | STRING        | 100%     | User ID in database (empty if guest)         |
+| `email_address` | string           | STRING        | 100%     | User email (empty if not logged in)          |
+| `ip`            | string           | STRING        | 100%     | User IP address (always present)             |
+
+#### 1.2 Device & Browser Context (3 fields)
+
+Device and browser information.
+
+| Field Name      | MongoDB Type     | BigQuery Type | Coverage | Notes                                        |
+|-----------------|------------------|---------------|----------|----------------------------------------------|
+| `user_agent`    | string           | STRING        | 100%     | Browser user agent string                    |
+| `resolution`    | string           | STRING        | 100%     | Screen resolution (e.g., "375x667")          |
+| `store_id`      | string           | STRING        | 100%     | Store/locale ID (86 distinct values)         |
+
+#### 1.3 Marketing Attribution (2 fields)
+
+UTM parameters for traffic source tracking.
+
+| Field Name      | MongoDB Type     | BigQuery Type | Coverage | Notes                                        |
+|-----------------|------------------|---------------|----------|----------------------------------------------|
+| `utm_source`    | bool, string     | STRING        | 4%       | UTM source (mixed: bool False or string)     |
+| `utm_medium`    | bool, string     | STRING        | 4%       | UTM medium (mixed: bool False or string)     |
+
+### Category 2: Interaction Data (47 fields)
+
+Business events, navigation, products, cart, recommendations, and system metadata.
+
+#### 2.1 System & Metadata (5 fields)
+
+Event tracking and system information.
+
+| Field Name      | MongoDB Type     | BigQuery Type | Coverage | Notes                                        |
+|-----------------|------------------|---------------|----------|----------------------------------------------|
+| `api_version`   | string           | STRING        | 100%     | Always "1.0"                                 |
+| `collection`    | string           | STRING        | 100%     | Event type (27 distinct values)              |
+| `time_stamp`    | int              | INT64         | 100%     | Unix timestamp (seconds since epoch)         |
+| `local_time`    | string           | STRING        | 100%     | Local timestamp "YYYY-MM-DD HH:MM:SS"        |
+| `collect_id`    | string           | STRING        | 15%      | Collection ID (listing/landing pages)        |
+
+#### 2.2 Navigation (3 fields)
+
+Page URLs and navigation flow.
+
+| Field Name            | MongoDB Type | BigQuery Type | Coverage | Notes                                   |
+|-----------------------|--------------|---------------|----------|-----------------------------------------|
+| `current_url`         | string       | STRING        | 100%     | Current page URL                        |
+| `referrer_url`        | string       | STRING        | 100%     | Referrer URL (empty for direct traffic) |
+| `show_recommendation` | string       | STRING        | 100%     | "true", "false", or null                |
+
+#### 2.3 Product Interaction (6 fields + nested)
+
+Product viewing, configuration, and pricing.
+
+| Field Name           | MongoDB Type  | BigQuery Type | Coverage | Notes                                   |
+|----------------------|---------------|---------------|----------|-----------------------------------------|
+| `product_id`         | string        | STRING        | 22%      | Product ID (product interaction events) |
+| `viewing_product_id` | string        | STRING        | 15%      | Currently viewed product (rare)         |
+| `option`             | array, object | JSON STRING   | 37%      | **Mixed structure** - see nested fields |
+| `price`              | string        | STRING        | 4%       | Product price (locale-formatted)        |
+| `currency`           | string        | STRING        | 4%       | Currency symbol (€, $, £, kr)           |
+| `cat_id`             | null          | STRING        | 15%      | Category ID (mostly null)               |
+| `key_search`         | string, null  | STRING        | 4%       | Search keyword                          |
+
+**Note:** `option` has two structures depending on event type:
+- **Array structure** (product configuration): Used in `select_product_option`, `add_to_cart_action`
+- **Object structure** (filters): Used in `view_listing_page`
+
+##### 2.3.1 Product Options - Array Structure (6 nested fields)
+
+When `option` is an array (product configuration events).
+
+| Field Path                 | MongoDB Type | BigQuery Type | Notes                                        |
+|----------------------------|--------------|---------------|----------------------------------------------|
+| `option[].option_id`       | string       | STRING        | Option ID (e.g., "105683")                   |
+| `option[].option_label`    | string       | STRING        | Option name (alloy, diamond, etc.)           |
+| `option[].value_id`        | string       | STRING        | Selected value ID                            |
+| `option[].value_label`     | string       | STRING        | Selected value label                         |
+| `option[].quality`         | string       | STRING        | Gemstone quality (A, AAA, AAAA, VVS, I)      |
+| `option[].quality_label`   | string       | STRING        | Quality label display                        |
+
+##### 2.3.2 Product Options - Object Structure (10 nested fields)
+
+When `option` is an object (browsing/filtering events).
+
+| Field Path                 | MongoDB Type | BigQuery Type | Notes                                        |
+|----------------------------|--------------|---------------|----------------------------------------------|
+| `option.alloy`             | string       | STRING        | Metal type filter (e.g., "white-silber")     |
+| `option.diamond`           | string       | STRING        | Gemstone filter                              |
+| `option.shapediamond`      | string       | STRING        | Diamond shape filter                         |
+| `option.finish`            | string       | STRING        | Finish type (polished, polished_new)         |
+| `option.stone`             | string       | STRING        | Stone count filter                           |
+| `option.pearlcolor`        | string       | STRING        | Pearl color filter                           |
+| `option.price`             | string       | STRING        | Price filter value                           |
+| `option.Kollektion`        | string       | STRING        | Collection filter (URL-encoded)              |
+| `option.kollektion_id`     | string       | STRING        | Collection ID                                |
+| `option.category id`       | string       | STRING        | Category ID filter                           |
+
+#### 2.4 Shopping Cart & Checkout (3 fields + nested)
+
+Cart contents and checkout flow.
+
+| Field Name      | MongoDB Type         | BigQuery Type      | Coverage | Notes                                        |
+|-----------------|----------------------|--------------------|----------|----------------------------------------------|
+| `cart_products` | array                | ARRAY<STRUCT>      | 11%      | Array of cart items (see nested fields)      |
+| `order_id`      | string, int, float   | STRING             | 7%       | **Mixed types** - use STRING                 |
+| `is_paypal`     | null                 | BOOL               | 4%       | PayPal flag (always null in sample)          |
+
+##### 2.4.1 Cart Products - Array Elements (9 nested fields)
+
+Structure of items in `cart_products` array.
+
+| Field Path                              | MongoDB Type  | BigQuery Type | Notes                             |
+|-----------------------------------------|---------------|---------------|-----------------------------------|
+| `cart_products[].product_id`            | int           | INT64         | Product ID in cart                |
+| `cart_products[].amount`                | int           | INT64         | Quantity (typically 1)            |
+| `cart_products[].price`                 | string        | STRING        | Item price (locale-formatted)     |
+| `cart_products[].currency`              | string        | STRING        | Currency symbol                   |
+| `cart_products[].option`                | array, string | JSON STRING   | **Mixed** - array or empty string |
+| `cart_products[].option[].option_id`    | int           | INT64         | Option ID                         |
+| `cart_products[].option[].option_label` | string        | STRING        | Option label                      |
+| `cart_products[].option[].value_id`     | int           | INT64         | Value ID                          |
+| `cart_products[].option[].value_label`  | string        | STRING        | Value label                       |
+
+#### 2.5 Recommendation Tracking (5 fields)
+
+Recommendation engine visibility and engagement.
+
+| Field Name                        | MongoDB Type    | BigQuery Type | Coverage | Notes                                        |
+|-----------------------------------|-----------------|---------------|----------|----------------------------------------------|
+| `recommendation`                  | bool            | BOOL          | 4%       | Recommendation flag                          |
+| `recommendation_product_id`       | string, null    | STRING        | 19%      | Recommended product ID                       |
+| `recommendation_product_position` | int, string     | STRING        | 11%      | **Mixed types** - position in list           |
+| `recommendation_clicked_position` | int, null       | INT64         | 7%       | Position of clicked recommendation           |
+
+---
+
+### Full Field Presence Matrix
+
+Complete matrix showing all 32 top-level fields across 27 event types.
+
+
+| Event Type         | _id | device_id | user_id_db | email_address | ip | store_id | user_agent | resolution | utm_source | utm_medium | api_version | cart_products | cat_id | collect_id | collection | currency | current_url | is_paypal | key_search | local_time | option | order_id | price | product_id | recommendation | recommendation_clicked_position | recommendation_product_id | recommendation_product_position | referrer_url | show_recommendation | time_stamp | viewing_product_id |
+|--------------------|-----|-----------|------------|---------------|----|----------|------------|------------|------------|------------|-------------|---------------|--------|------------|------------|----------|-------------|-----------|------------|------------|--------|----------|-------|------------|----------------|---------------------------------|---------------------------|---------------------------------|--------------|---------------------|------------|--------------------|
+| add_to_cart        | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          | ✓        | ✓           | ✓         |            | ✓          | ✓      |          | ✓     | ✓          |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| back_to_prod       | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       | ✓          |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| checkout           | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           | ✓             |        |            | ✓          |          | ✓           |           |            | ✓          |        | ✓        |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| checkout_ok        | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           | ✓             |        |            | ✓          |          | ✓           |           |            | ✓          |        | ✓        |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| land_rec_click     | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 | ✓                         | ✓                               | ✓            | ✓                   | ✓          |                    |
+| land_rec_notice    | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| land_rec_vis       | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| list_rec_click     | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               | ✓      | ✓          | ✓          |          | ✓           |           |            | ✓          | ✓      |          |       |            |                | ✓                               | ✓                         |                                 | ✓            | ✓                   | ✓          |                    |
+| list_rec_notice    | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               | ✓      | ✓          | ✓          |          | ✓           |           |            | ✓          | ✓      |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| list_rec_vis       | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               | ✓      | ✓          | ✓          |          | ✓           |           |            | ✓          | ✓      |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| prod_rec_click     | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                | ✓                               | ✓                         |                                 | ✓            | ✓                   | ✓          | ✓                  |
+| prod_rec_notice    | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          | ✓                  |
+| prod_rec_vis       | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          | ✓                  |
+| view_all_rec_click | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 | ✓                         | ✓                               | ✓            | ✓                   | ✓          | ✓                  |
+| search_box         | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           | ✓          | ✓          |        |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| select_option      | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          | ✓      |          |       | ✓          |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| select_quality     | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          | ✓      |          |       | ✓          |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| sort_click         | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 | ✓                         | ✓                               | ✓            | ✓                   | ✓          |                    |
+| view_all_rec       | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          | ✓      |          |       | ✓          |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| view_home          | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| view_landing       | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| view_listing       | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               | ✓      | ✓          | ✓          |          | ✓           |           |            | ✓          | ✓      |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| view_account       | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| view_product       | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          | ✓          | ✓          | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          | ✓      |          |       | ✓          | ✓              |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| view_cart          | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           | ✓             |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| view_sort          | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          | ✓      |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+| view_static        | ✓   | ✓         | ✓          | ✓             | ✓  | ✓        | ✓          | ✓          |            |            | ✓           |               |        |            | ✓          |          | ✓           |           |            | ✓          |        |          |       |            |                |                                 |                           |                                 | ✓            | ✓                   | ✓          |                    |
+
+**Key insights from matrix:**
+- **Universal fields (100% coverage):** 14 fields present in all event types
+- **Product-specific fields:** `option`, `product_id` present in 10 and 6 event types respectively
+- **Cart-specific fields:** `cart_products`, `order_id` only in checkout/cart events
+- **Recommendation fields:** Scattered across recommendation-related events (5-19% coverage)
+- **Rare fields:** `utm_source`, `utm_medium`, `currency`, `price` appear in only 1 event type each
+
+---
+
+## Sample-based Analysis
 
 ### Null/Missing Rates for Key Fields
 
