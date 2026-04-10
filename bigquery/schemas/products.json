@@ -1,9 +1,249 @@
 [
   {
-    "name": "raw_doc",
-    "type": "JSON",
+    "name": "product_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Product ID (from database)"
+  },
+  {
+    "name": "url",
+    "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Product data as JSON"
+    "description": "Product URL"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Crawl status (success, no_react_data, error)"
+  },
+  {
+    "name": "http_status",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "HTTP response status code"
+  },
+  {
+    "name": "error_message",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Error message if crawl failed"
+  },
+  {
+    "name": "fallback_used",
+    "type": "BOOL",
+    "mode": "NULLABLE",
+    "description": "Whether JSON-LD fallback parser was used"
+  },
+  {
+    "name": "product_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Product name"
+  },
+  {
+    "name": "sku",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Product SKU"
+  },
+  {
+    "name": "attribute_set_id",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Attribute set ID"
+  },
+  {
+    "name": "attribute_set",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Attribute set name"
+  },
+  {
+    "name": "type_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Product type ID"
+  },
+  {
+    "name": "product_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Product type"
+  },
+  {
+    "name": "product_type_value",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Product type value"
+  },
+  {
+    "name": "price",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Current price"
+  },
+  {
+    "name": "min_price",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Minimum price"
+  },
+  {
+    "name": "max_price",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Maximum price"
+  },
+  {
+    "name": "min_price_format",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Formatted minimum price with currency"
+  },
+  {
+    "name": "max_price_format",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Formatted maximum price with currency"
+  },
+  {
+    "name": "gold_weight",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Gold weight"
+  },
+  {
+    "name": "none_metal_weight",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Non-metal weight"
+  },
+  {
+    "name": "fixed_silver_weight",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Fixed silver weight"
+  },
+  {
+    "name": "material_design",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Material design"
+  },
+  {
+    "name": "qty",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Quantity"
+  },
+  {
+    "name": "collection",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Collection name"
+  },
+  {
+    "name": "collection_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Collection ID"
+  },
+  {
+    "name": "category",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Category ID"
+  },
+  {
+    "name": "category_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Category name"
+  },
+  {
+    "name": "store_code",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Store code (country)"
+  },
+  {
+    "name": "gender",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Target gender"
+  },
+  {
+    "name": "platinum_palladium_info_in_alloy",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Platinum/palladium info flag"
+  },
+  {
+    "name": "bracelet_without_chain",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Bracelet without chain flag"
+  },
+  {
+    "name": "show_popup_quantity_eternity",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Show popup quantity eternity flag"
+  },
+  {
+    "name": "visible_contents",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Visible contents array"
+  },
+  {
+    "name": "configure_mode",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Configure mode flag"
+  },
+  {
+    "name": "included_chain_weight",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Included chain weight"
+  },
+  {
+    "name": "currency_code",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Currency code"
+  },
+  {
+    "name": "tax_rate",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Tax rate"
+  },
+  {
+    "name": "primary_image_url",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Primary product image URL"
+  },
+  {
+    "name": "primary_video_url",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Primary product video URL"
+  },
+  {
+    "name": "gender_label",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Gender label from attributes"
+  },
+  {
+    "name": "is_solid",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Is solid/massiv flag"
   },
   {
     "name": "ingested_at",

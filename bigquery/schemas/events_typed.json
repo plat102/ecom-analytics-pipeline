@@ -1,0 +1,296 @@
+[
+  {
+    "name": "_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "MongoDB document ID (ObjectId converted to string)"
+  },
+  {
+    "name": "device_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User device UUID"
+  },
+  {
+    "name": "user_id_db",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User ID in database (empty string if guest)"
+  },
+  {
+    "name": "email_address",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User email (empty string if not logged in)"
+  },
+  {
+    "name": "ip",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User IP address"
+  },
+  {
+    "name": "store_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Store/locale ID (86 distinct values)"
+  },
+  {
+    "name": "user_agent",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Browser user agent string"
+  },
+  {
+    "name": "resolution",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Screen resolution (e.g., 375x667)"
+  },
+  {
+    "name": "utm_source",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "UTM source - mixed types (bool False or string), stored as STRING"
+  },
+  {
+    "name": "utm_medium",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "UTM medium - mixed types (bool False or string), stored as STRING"
+  },
+  {
+    "name": "api_version",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "API version (always 1.0)"
+  },
+  {
+    "name": "collection",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Event type (27 distinct values)"
+  },
+  {
+    "name": "time_stamp",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Unix timestamp (seconds since epoch)"
+  },
+  {
+    "name": "local_time",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Local timestamp YYYY-MM-DD HH:MM:SS"
+  },
+  {
+    "name": "collect_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Collection ID (listing/landing pages only)"
+  },
+  {
+    "name": "current_url",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Current page URL"
+  },
+  {
+    "name": "referrer_url",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Referrer URL (empty for direct traffic)"
+  },
+  {
+    "name": "show_recommendation",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Recommendation visibility flag (true/false/null)"
+  },
+  {
+    "name": "product_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Product ID (product interaction events only)"
+  },
+  {
+    "name": "viewing_product_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Currently viewed product ID (rare field)"
+  },
+  {
+    "name": "option",
+    "type": "RECORD",
+    "mode": "REPEATED",
+    "description": "Product options as array of key-value pairs (handles both option object and option array from MongoDB)",
+    "fields": [
+      {
+        "name": "option_id",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Option ID"
+      },
+      {
+        "name": "option_label",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Option label/name (e.g., alloy, diamond)"
+      },
+      {
+        "name": "value_id",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Option value ID"
+      },
+      {
+        "name": "value_label",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Option value label"
+      },
+      {
+        "name": "quality",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Quality grade (e.g., A, AAA, AAAA)"
+      },
+      {
+        "name": "quality_label",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Quality label"
+      }
+    ]
+  },
+  {
+    "name": "price",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Product price (locale-formatted)"
+  },
+  {
+    "name": "currency",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Currency symbol (€, $, £, kr)"
+  },
+  {
+    "name": "cat_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Category ID (mostly null)"
+  },
+  {
+    "name": "key_search",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Search keyword"
+  },
+  {
+    "name": "cart_products",
+    "type": "RECORD",
+    "mode": "REPEATED",
+    "description": "Array of products in cart",
+    "fields": [
+      {
+        "name": "product_id",
+        "type": "INT64",
+        "mode": "NULLABLE",
+        "description": "Product ID in cart"
+      },
+      {
+        "name": "amount",
+        "type": "INT64",
+        "mode": "NULLABLE",
+        "description": "Quantity (typically 1)"
+      },
+      {
+        "name": "price",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Item price (locale-formatted)"
+      },
+      {
+        "name": "currency",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Currency symbol"
+      },
+      {
+        "name": "option",
+        "type": "RECORD",
+        "mode": "REPEATED",
+        "description": "Product options array (flattened from nested structure)",
+        "fields": [
+          {
+            "name": "option_id",
+            "type": "INT64",
+            "mode": "NULLABLE",
+            "description": "Option ID"
+          },
+          {
+            "name": "option_label",
+            "type": "STRING",
+            "mode": "NULLABLE",
+            "description": "Option label/name (e.g., alloy, diamond)"
+          },
+          {
+            "name": "value_id",
+            "type": "INT64",
+            "mode": "NULLABLE",
+            "description": "Option value ID"
+          },
+          {
+            "name": "value_label",
+            "type": "STRING",
+            "mode": "NULLABLE",
+            "description": "Option value label"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "order_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Order ID - mixed types (string/int/float), stored as STRING"
+  },
+  {
+    "name": "is_paypal",
+    "type": "BOOL",
+    "mode": "NULLABLE",
+    "description": "PayPal payment flag (always null in sample)"
+  },
+  {
+    "name": "recommendation",
+    "type": "BOOL",
+    "mode": "NULLABLE",
+    "description": "Recommendation flag"
+  },
+  {
+    "name": "recommendation_product_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Recommended product ID"
+  },
+  {
+    "name": "recommendation_product_position",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Position in recommendation list - mixed types (int/string), stored as STRING"
+  },
+  {
+    "name": "recommendation_clicked_position",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Position of clicked recommendation"
+  },
+  {
+    "name": "ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Data ingestion timestamp for tracking and partitioning"
+  }
+]

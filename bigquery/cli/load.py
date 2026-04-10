@@ -17,8 +17,8 @@ Usage:
 import argparse
 import sys
 
-from common.bigquery import get_client
-from bigquery.utils.loader import (
+from common.bigquery import (
+    get_client,
     construct_gcs_uri,
     load_via_external_table,
     validate_table

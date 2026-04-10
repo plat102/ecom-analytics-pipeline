@@ -1,9 +1,27 @@
 [
   {
-    "name": "raw_doc",
-    "type": "JSON",
+    "name": "ip",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "IP address"
+  },
+  {
+    "name": "country",
+    "type": "STRING",
     "mode": "NULLABLE",
-    "description": "IP location data as JSON"
+    "description": "Country name"
+  },
+  {
+    "name": "region",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Region or state name"
+  },
+  {
+    "name": "city",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "City name"
   },
   {
     "name": "ingested_at",

@@ -171,3 +171,6 @@ logs/
 # Credentials and config
 credentials.json
 service-account*.json
+
+# Cloud Functions - copied dependencies
+cloud_functions/gcs_to_bq/common/

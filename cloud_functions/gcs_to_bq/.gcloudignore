@@ -1,0 +1,16 @@
+# Ignore unnecessary files during deployment
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist/
+build/
+copy_common.sh
+deploy.sh
+README.md
