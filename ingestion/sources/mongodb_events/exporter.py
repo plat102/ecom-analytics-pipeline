@@ -10,12 +10,13 @@ from typing import Optional, List
 
 from bson import ObjectId
 
-from common.database.mongodb_client import get_mongodb_client
+from common.database.mongodb.client import get_mongodb_client
 from common.utils.logger import get_logger
-from ingestion.shared.gcs_writer import write_and_upload_jsonl_gz
-from ingestion.shared.mongodb_utils import MongoJSONEncoder
-from ingestion.shared.checkpoint import save_checkpoint, load_checkpoint, clear_checkpoint
-from ingestion.sources.mongodb.events import config
+from common.transformations.bigquery_schema import transform_event_for_bigquery
+from common.storage.gcs.writer import write_and_upload_jsonl_gz
+from common.database.mongodb.utils import MongoJSONEncoder
+from common.utils.checkpoint import save_checkpoint, load_checkpoint, clear_checkpoint
+from ingestion.sources.mongodb_events import config
 
 logger = get_logger(__name__)
 
@@ -99,7 +100,13 @@ def export_events(
         for doc in cursor:
             # Convert ObjectId to string for JSON serialization
             doc_json = json.loads(json.dumps(doc, cls=MongoJSONEncoder))
-            batch.append(doc_json)
+
+            # Transform document for BigQuery compatibility
+            # - Normalize option field (OBJECT to ARRAY)
+            # - Normalize cart_products with nested options
+            doc_transformed = transform_event_for_bigquery(doc_json)
+
+            batch.append(doc_transformed)
 
             if len(batch) >= config.BATCH_SIZE:
                 # Upload batch

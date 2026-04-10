@@ -10,7 +10,7 @@ from datetime import datetime
 
 import pytest
 
-from ingestion.shared.checkpoint import (
+from common.utils.checkpoint import (
     save_checkpoint,
     load_checkpoint,
     clear_checkpoint

@@ -8,7 +8,7 @@ Purpose:
 - Remove _id field (not needed for schema definition)
 """
 
-from common.database.mongodb_client import get_mongodb_client
+from common.database.mongodb.client import get_mongodb_client
 from common.utils.logger import get_logger
 import json
 from pathlib import Path

@@ -7,13 +7,13 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from ingestion.shared.gcs_writer import write_and_upload_jsonl_gz
+from common.storage.gcs.writer import write_and_upload_jsonl_gz
 
 
 class TestWriteAndUploadJsonlGz:
     """Test write_and_upload_jsonl_gz function"""
 
-    @patch('ingestion.shared.gcs_writer.upload_to_gcs')
+    @patch('common.storage.gcs.writer.upload_to_gcs')
     def test_basic_success(self, mock_upload):
         """Test basic write, compress, upload workflow"""
         mock_upload.return_value = True
@@ -49,7 +49,7 @@ class TestWriteAndUploadJsonlGz:
         # Cleanup
         temp_path.unlink()
 
-    @patch('ingestion.shared.gcs_writer.upload_to_gcs')
+    @patch('common.storage.gcs.writer.upload_to_gcs')
     def test_return_stats_structure(self, mock_upload):
         """Test stats dictionary has correct structure and values"""
         mock_upload.return_value = True

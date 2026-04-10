@@ -10,7 +10,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from common.database.mongodb_client import get_mongodb_client
+from common.database.mongodb.client import get_mongodb_client
 from common.utils.logger import get_logger
 from config import settings
 

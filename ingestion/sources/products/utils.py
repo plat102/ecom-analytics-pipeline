@@ -109,7 +109,7 @@ def save_checkpoint(checkpoint_file: Path, results: List[Dict]) -> None:
         checkpoint_file: Path to checkpoint file
         results: List of result dicts
     """
-    from ingestion.shared.checkpoint import save_checkpoint as save_checkpoint_generic
+    from common.utils.checkpoint import save_checkpoint as save_checkpoint_generic
 
     data = {
         "total_products": len(results),
@@ -129,7 +129,7 @@ def load_checkpoint(checkpoint_file: Path) -> List[Dict]:
     Returns:
         List of result dicts (empty if no checkpoint)
     """
-    from ingestion.shared.checkpoint import load_checkpoint as load_checkpoint_generic
+    from common.utils.checkpoint import load_checkpoint as load_checkpoint_generic
 
     checkpoint = load_checkpoint_generic(checkpoint_file)
 

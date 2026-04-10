@@ -8,7 +8,7 @@ import json
 from datetime import datetime, timezone
 from bson import ObjectId
 
-from ingestion.shared.mongodb_utils import MongoJSONEncoder
+from common.database.mongodb.utils import MongoJSONEncoder
 
 
 class TestMongoJSONEncoder:

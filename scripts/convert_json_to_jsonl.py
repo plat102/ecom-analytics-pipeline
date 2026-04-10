@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from common.storage.gcs_format_utils import json_array_to_jsonl_gz, filter_by_field
+from common.storage.gcs.format_utils import json_array_to_jsonl_gz, filter_by_field
 
 
 def main():

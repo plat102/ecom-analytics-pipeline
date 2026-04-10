@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import Iterator, Dict, Any
 
-from common.storage.gcs_client import upload_to_gcs
+from common.storage.gcs.client import upload_to_gcs
 from common.utils.logger import get_logger
 
 logger = get_logger(__name__)

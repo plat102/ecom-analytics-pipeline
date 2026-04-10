@@ -14,7 +14,7 @@ Strategy:
 - Type tracking with frequency counts
 """
 
-from common.database.mongodb_client import get_mongodb_client
+from common.database.mongodb.client import get_mongodb_client
 from common.utils.logger import get_logger
 from collections import defaultdict
 from typing import Any, Dict, List, Set

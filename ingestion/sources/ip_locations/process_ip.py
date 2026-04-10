@@ -12,7 +12,7 @@ sys.path.insert(0, str(project_root))
 import csv
 import IP2Location
 
-from common.database.mongodb_client import get_mongodb_client
+from common.database.mongodb.client import get_mongodb_client
 from common.utils.logger import get_logger
 from config import settings
 

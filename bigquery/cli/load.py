@@ -16,9 +16,9 @@ Usage:
 
 import argparse
 import sys
-from google.cloud import bigquery
 
-from common.bigquery.loader_utils import (
+from common.bigquery import get_client
+from bigquery.utils.loader import (
     construct_gcs_uri,
     load_via_external_table,
     validate_table
@@ -55,7 +55,7 @@ def main():
 
     args = parser.parse_args()
 
-    client = bigquery.Client(project=PROJECT_ID)
+    client = get_client(PROJECT_ID)
 
     gcs_uri = construct_gcs_uri(GCS_BUCKET, args.table, args.date)
 

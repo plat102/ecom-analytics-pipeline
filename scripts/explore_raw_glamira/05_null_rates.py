@@ -2,7 +2,7 @@
 Query: Check null/missing rates for key fields
 """
 
-from common.database.mongodb_client import get_mongodb_client
+from common.database.mongodb.client import get_mongodb_client
 from common.utils.logger import get_logger
 
 logger = get_logger(__name__)

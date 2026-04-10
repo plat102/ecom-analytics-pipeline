@@ -1,6 +1,9 @@
 """
-BigQuery utilities shared across the project.
+BigQuery infrastructure utilities.
 
-This module provides common utilities for loading data to BigQuery,
-used by both manual load scripts and Cloud Functions.
+This module provides BigQuery client initialization and connection management.
 """
+
+from .client import get_client
+
+__all__ = ["get_client"]

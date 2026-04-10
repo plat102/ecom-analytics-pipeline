@@ -10,16 +10,16 @@ from bson import ObjectId
 
 import pytest
 
-from ingestion.sources.mongodb.events.exporter import export_events
+from ingestion.sources.mongodb_events.exporter import export_events
 
 
 class TestExportEvents:
     """Test export_events function"""
 
-    @patch('ingestion.sources.mongodb.events.exporter.get_mongodb_client')
-    @patch('ingestion.sources.mongodb.events.exporter.write_and_upload_jsonl_gz')
-    @patch('ingestion.sources.mongodb.events.exporter.save_checkpoint')
-    @patch('ingestion.sources.mongodb.events.exporter.clear_checkpoint')
+    @patch('ingestion.sources.mongodb_events.exporter.get_mongodb_client')
+    @patch('ingestion.sources.mongodb_events.exporter.write_and_upload_jsonl_gz')
+    @patch('ingestion.sources.mongodb_events.exporter.save_checkpoint')
+    @patch('ingestion.sources.mongodb_events.exporter.clear_checkpoint')
     def test_export_events_full_mode_single_batch(
         self, mock_clear_checkpoint, mock_save_checkpoint,
         mock_write_upload, mock_get_client
@@ -77,9 +77,9 @@ class TestExportEvents:
         # Verify checkpoint was cleared on success
         mock_clear_checkpoint.assert_called_once()
 
-    @patch('ingestion.sources.mongodb.events.exporter.get_mongodb_client')
-    @patch('ingestion.sources.mongodb.events.exporter.write_and_upload_jsonl_gz')
-    @patch('ingestion.sources.mongodb.events.exporter.save_checkpoint')
+    @patch('ingestion.sources.mongodb_events.exporter.get_mongodb_client')
+    @patch('ingestion.sources.mongodb_events.exporter.write_and_upload_jsonl_gz')
+    @patch('ingestion.sources.mongodb_events.exporter.save_checkpoint')
     def test_export_events_filter_mode_specific_collections(
         self, mock_save_checkpoint, mock_write_upload, mock_get_client
     ):
@@ -124,9 +124,9 @@ class TestExportEvents:
         assert "collection" in query_arg
         assert query_arg["collection"] == {"$in": ["checkout_success", "view_product_detail"]}
 
-    @patch('ingestion.sources.mongodb.events.exporter.get_mongodb_client')
-    @patch('ingestion.sources.mongodb.events.exporter.load_checkpoint')
-    @patch('ingestion.sources.mongodb.events.exporter.write_and_upload_jsonl_gz')
+    @patch('ingestion.sources.mongodb_events.exporter.get_mongodb_client')
+    @patch('ingestion.sources.mongodb_events.exporter.load_checkpoint')
+    @patch('ingestion.sources.mongodb_events.exporter.write_and_upload_jsonl_gz')
     def test_export_events_resume_from_checkpoint(
         self, mock_write_upload, mock_load_checkpoint, mock_get_client
     ):
@@ -173,7 +173,7 @@ class TestExportEvents:
         assert "_id" in query_arg
         assert "$gt" in query_arg["_id"]
 
-    @patch('ingestion.sources.mongodb.events.exporter.get_mongodb_client')
+    @patch('ingestion.sources.mongodb_events.exporter.get_mongodb_client')
     def test_export_events_filter_mode_requires_collections(self, mock_get_client):
         """Should return False if filter mode without collections"""
         result = export_events(mode="filter", collections=None)
@@ -183,8 +183,8 @@ class TestExportEvents:
         # Should not connect to MongoDB
         mock_get_client.assert_not_called()
 
-    @patch('ingestion.sources.mongodb.events.exporter.get_mongodb_client')
-    @patch('ingestion.sources.mongodb.events.exporter.write_and_upload_jsonl_gz')
+    @patch('ingestion.sources.mongodb_events.exporter.get_mongodb_client')
+    @patch('ingestion.sources.mongodb_events.exporter.write_and_upload_jsonl_gz')
     def test_export_events_handles_upload_failure(
         self, mock_write_upload, mock_get_client
     ):
@@ -208,7 +208,7 @@ class TestExportEvents:
         # Should return False on failure
         assert result is False
 
-    @patch('ingestion.sources.mongodb.events.exporter.get_mongodb_client')
+    @patch('ingestion.sources.mongodb_events.exporter.get_mongodb_client')
     def test_export_events_handles_exception(self, mock_get_client):
         """Should return False and log exception on error"""
         # Mock exception during MongoDB connection
@@ -220,7 +220,7 @@ class TestExportEvents:
         # Should return False on exception
         assert result is False
 
-    @patch('ingestion.sources.mongodb.events.exporter.get_mongodb_client')
+    @patch('ingestion.sources.mongodb_events.exporter.get_mongodb_client')
     def test_export_events_closes_client_in_finally(self, mock_get_client):
         """Should close MongoDB client even if exception occurs"""
         mock_client = Mock()

@@ -5,23 +5,23 @@ Export MongoDB events to GCS in JSONL.gz format.
 
 Usage:
     # Full export (all 27 event types)
-    python -m ingestion.sources.mongodb.events export --mode full
+    python -m ingestion.sources.mongodb_events export --mode full
 
     # Filter export (specific collections)
-    python -m ingestion.sources.mongodb.events export --mode filter --collections view_product_detail,checkout_success
+    python -m ingestion.sources.mongodb_events export --mode filter --collections view_product_detail,checkout_success
 
     # Resume from checkpoint
-    python -m ingestion.sources.mongodb.events export --mode full --resume
+    python -m ingestion.sources.mongodb_events export --mode full --resume
 
     # Custom date
-    python -m ingestion.sources.mongodb.events export --mode full --date 20260404
+    python -m ingestion.sources.mongodb_events export --mode full --date 20260404
 """
 
 import argparse
 import sys
 
 from common.utils.logger import get_logger
-from ingestion.sources.mongodb.events.exporter import export_events
+from ingestion.sources.mongodb_events.exporter import export_events
 
 logger = get_logger(__name__)
 
@@ -29,22 +29,22 @@ logger = get_logger(__name__)
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser"""
     parser = argparse.ArgumentParser(
-        prog="python -m ingestion.sources.mongodb.events",
+        prog="python -m ingestion.sources.mongodb_events",
         description="Export MongoDB events to GCS",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Full export (all collections)
-  python -m ingestion.sources.mongodb.events export --mode full
+  python -m ingestion.sources.mongodb_events export --mode full
 
   # Filter specific collections
-  python -m ingestion.sources.mongodb.events export --mode filter --collections view_product_detail,checkout_success
+  python -m ingestion.sources.mongodb_events export --mode filter --collections view_product_detail,checkout_success
 
   # Resume from checkpoint
-  python -m ingestion.sources.mongodb.events export --mode full --resume
+  python -m ingestion.sources.mongodb_events export --mode full --resume
 
   # Custom date
-  python -m ingestion.sources.mongodb.events export --mode full --date 20260404
+  python -m ingestion.sources.mongodb_events export --mode full --date 20260404
         """
     )
 
