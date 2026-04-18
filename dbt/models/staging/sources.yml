@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: glamira_raw
+    description: Raw layer loaded from MongoDB via GCS
+    database: ecom-analytics-tp
+    schema: glamira_raw
+    tables:
+      - name: events
+        description: E-commerce events (41.4M rows)

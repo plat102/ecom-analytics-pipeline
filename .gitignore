@@ -174,3 +174,8 @@ service-account*.json
 
 # Cloud Functions - copied dependencies
 cloud_functions/gcs_to_bq/common/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/

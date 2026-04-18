@@ -1,0 +1,16 @@
+[project]
+name = "glamira-dbt"
+version = "0.1.0"
+description = "dbt transformations for Glamira analytics"
+authors = [
+    {name = "Thu Phan",email = "thuleanhphan@gmail.com"}
+]
+requires-python = "^3.12"
+dependencies = [
+    "dbt-bigquery (>=1.8,<2.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
