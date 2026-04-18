@@ -1,0 +1,117 @@
+// ============================================================
+// Glamira Sales Order Data Warehouse - Single Fact
+// ============================================================
+
+// DIMENSION TABLES
+
+Table dim_date {
+  date_key        INT64       [pk]
+  full_date       DATE
+  year            INT64
+  month           INT64
+  quarter         INT64
+  is_weekend      BOOL
+
+  Note: '''
+    Pre-generated calendar dimension (2015-2030).
+
+    Key Design:
+    - date_key (surrogate): Used for FK joins from fact tables
+    - full_date (natural): Unique, used for date range filters
+  '''
+}
+
+Table dim_product {
+  product_key       INT64       [pk]
+  product_id        STRING
+  url               STRING
+  product_name      STRING
+
+  sku               STRING
+  product_type      STRING
+  collection_name   STRING
+  gender            STRING
+
+  currency_code     STRING
+  price             NUMERIC(10,2)
+  min_price         NUMERIC(10,2)
+  max_price         NUMERIC(10,2)
+
+  gold_weight       NUMERIC(10,4)
+
+  Note: "Product catalog (18,938 products)"
+}
+
+Table dim_customer {
+  customer_key      INT64       [pk]
+  user_id_db        STRING
+  device_id         STRING
+  email_address     STRING
+
+  Note: '''
+    Customer profiles (95% anonymous guests).
+    device_id = Anonymous customer identifier (NOT related to dim_device).
+  '''
+}
+
+Table dim_location {
+  location_key      INT64       [pk]
+  ip                STRING
+  country_name      STRING
+  city_name         STRING
+  continent         STRING
+
+  Note: "IP geolocation (3.24M unique IPs)"
+}
+
+Table dim_device {
+  device_key       INT64       [pk]
+  device_category  STRING
+  browser          STRING
+  os               STRING
+  is_mobile        BOOL
+
+  Note: '''
+    Device and browser categories (junk dimension, ~20 rows).
+    Grain: 1 row = 1 unique (device_category, browser) combination.
+  '''
+}
+
+Table dim_exchange_rate {
+  exchange_rate_key   INT64         [pk]
+  currency_code       STRING
+  rate_date           DATE
+  rate_to_usd         NUMERIC(20,10)
+
+  Note: "Currency conversion rates (42 currencies)"
+}
+
+
+// FACT TABLE (1 table - LINE ITEM GRAIN)
+
+Table fact_sales_order_line {
+  order_line_key          INT64         [pk]
+
+  // Foreign Keys to Dimensions
+  order_date_key          INT64         [ref: > dim_date.date_key]
+  customer_key            INT64         [ref: > dim_customer.customer_key]
+  location_key            INT64         [ref: > dim_location.location_key]
+  device_key              INT64         [ref: > dim_device.device_key]
+  exchange_rate_key       INT64         [ref: > dim_exchange_rate.exchange_rate_key]
+  product_key             INT64         [ref: > dim_product.product_key]
+
+  // Business Keys (Degenerate Dimensions)
+  order_id                STRING
+  store_id                STRING
+  order_time              TIMESTAMP
+
+  // LINE-LEVEL Measures (additive across all rows)
+  quantity                INT64
+  unit_price              NUMERIC(10,2)
+  line_amount             NUMERIC(10,2)
+
+  Note: '''
+    Single fact table at LINE ITEM grain.
+    Grain: 1 row = 1 product per order
+  '''
+}
