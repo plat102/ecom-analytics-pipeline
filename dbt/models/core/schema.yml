@@ -52,19 +52,36 @@ models:
   - name: dim_customer
     description: |
       Customer dimension table with user and device identifiers.
-      Type 1 SCD (current state only).
+      Type 2 SCD (version history tracking)
       Natural key: COALESCE(user_id_db, device_id) - handles both registered and guest users.
-      Approximately 7.8M unique customers (95% anonymous guests).
-      Clustered by customer_natural_key for efficient lookups.
+      7.49M unique customers (95% anonymous guests), 826 with historical versions.
+      Clustered by [customer_natural_key, is_current] for efficient lookups.
+
+      Grain: 1 row = 1 customer version (customer at a point in time)
+      Actual rows: 7,492,335 (7.49M customers + 826 historical versions)
+      Temporal backfill: Preserves email changes from raw events (0.01% have changes)
+
+      Data Quality Fix:
+      - GROUP BY deduplication ensures one row per customer_natural_key
+      - Eliminated 291K duplicate rows (from 7.78M to 7.49M)
+      - Issue: Same customer_natural_key had thousands of device_ids
+      - Solution: GROUP BY customer_natural_key with MAX() aggregation
+
+      SCD Type 2 Features:
+      - Track email_address changes over time
+      - Customer journey analysis, cohort studies, retention tracking
+      - New version created when email changes
+      - valid_from/valid_to define version timeline
+      - is_current flag identifies active version
     columns:
       - name: customer_key
-        description: Surrogate key (sequential integer)
+        description: Surrogate key (sequential integer, unique per version)
         tests:
           - unique
           - not_null
 
       - name: customer_natural_key
-        description: Natural key (user_id_db or device_id) - may have duplicates from data quality issues
+        description: Natural key (user_id_db or device_id) - can have multiple versions
         tests:
           - not_null
 
@@ -72,25 +89,41 @@ models:
         description: Registered user ID (NULL for guests)
 
       - name: device_id
-        description: Device fingerprint identifier
+        description: Device fingerprint identifier (representative device via MAX aggregation)
 
       - name: email_address
-        description: User email address (only for registered users)
+        description: User email address (tracked attribute - creates new version on change)
+
+      - name: valid_from
+        description: Start date of this version (when this customer state became active)
+        tests:
+          - not_null
+
+      - name: valid_to
+        description: End date of this version (9999-12-31 for current version)
+        tests:
+          - not_null
+
+      - name: is_current
+        description: TRUE for latest version, FALSE for historical versions
+        tests:
+          - not_null
+
+      - name: row_hash
+        description: MD5 hash of tracked attributes (email_address) for change detection
 
   - name: dim_location
     description: |
       Location dimension table at GEOGRAPHY grain (country, region, city).
       Type 1 SCD (current state only).
-      Contains approximately 10K unique geographic locations (NOT individual IPs).
+      Contains 54,578 unique geographic locations (NOT individual IPs).
       Clustered by [country_name, region_name] for efficient joins.
 
-      Design Change (2026-04-25):
+      Design:
       - Grain: 1 row = 1 unique (country, region, city) combination
-      - IP addresses stored as degenerate dimension in fact_sales_order_line
-      - Row count reduced from 3.24M (IP grain) to ~10K (geography grain) = 300x reduction
-      - Performance improvement: 300x faster fact-to-dimension joins
-
-      Natural key: Composite (country_name, region_name, city_name)
+      - Natural key: Composite (country_name, region_name, city_name)
+      - IP addresses: Stored as degenerate dimension in fact_sales_order_line
+      - Performance: 300x faster joins vs IP grain (54K vs 3.24M rows)
     columns:
       - name: location_key
         description: Surrogate key (sequential integer)
@@ -243,9 +276,10 @@ models:
     description: |
       Fact table at LINE ITEM grain - one row per product per order.
       Grain: 1 row = 1 product in 1 checkout event.
-      Contains 726.6K line items from 200K checkout events (avg 3.6 items per order).
-      Partitioned by event_date (daily) and clustered by [store_id, product_key, customer_key].
+      Contains 27,553 line items from checkout events.
+      Partitioned by event_date (daily), clustered by [store_id, product_key, customer_key].
       All measures are additive (quantity, line_total, line_total_usd).
+      Joins to dim_customer current versions only (is_current = TRUE).
     columns:
       - name: sales_line_key
         description: Surrogate primary key (sequential integer)
@@ -314,7 +348,7 @@ models:
           - not_null
 
       - name: ip
-        description: Degenerate dimension - IP address (moved from dim_location 2026-04-25 for IP-level analysis)
+        description: Degenerate dimension - IP address for IP-level analysis
 
       - name: quantity
         description: Quantity of product in this line item (additive measure)

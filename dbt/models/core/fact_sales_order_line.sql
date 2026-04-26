@@ -44,6 +44,7 @@ WITH items_enriched AS (
     ON ci.product_id = dp.product_id
   LEFT JOIN {{ ref('dim_customer') }} dc
     ON ci.customer_natural_key = dc.customer_natural_key
+    AND dc.is_current = TRUE
   LEFT JOIN {{ ref('dim_location') }} dl
     ON ci.country_name = dl.country_name
     AND COALESCE(ci.region_name, '') = COALESCE(dl.region_name, '')
