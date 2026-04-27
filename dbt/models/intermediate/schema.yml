@@ -5,14 +5,9 @@ models:
     description: |
       Checkout events with device parsing (EVENT GRAIN).
       Grain: 1 row = 1 checkout event (~200K rows).
+      Design: Filter-first - filters to checkout_success events BEFORE parsing device
+      (not after parsing all events). Implements reduction in parsing operations.
 
-      Consumers: dim_device, int_events_cart_items
-
-      Design: Filter-first approach - filters to checkout_success events BEFORE parsing device
-      (not after parsing all 40.7M events). Implements 99.5% reduction in parsing operations.
-
-      This model combines the logic from the old int_checkout_events (filter) and
-      int_checkout_events_with_device (parse) into a single, more efficient model.
     columns:
       - name: event_id
         description: Unique event identifier (primary key at event grain)
@@ -81,15 +76,12 @@ models:
   - name: int_events_cart_items
     description: |
       Line items from checkout events (LINE ITEM GRAIN).
-      Grain: 1 row = 1 product in 1 checkout event (~726K rows).
-
-      Consumers: fact_sales_order_line
+      Grain: 1 row = 1 product in 1 checkout event.
 
       Design: Inherits device fields from int_events_checkout_success (event grain),
-      only UNNESTs cart_products. This model focuses on a single responsibility
-      (UNNEST only), while device parsing is done upstream at the correct grain.
+      only UNNESTs cart_products.
 
-      Source: ~200K checkout events, Output: ~726K line items (avg 3.6 items per order).
+      Init: Source: ~200K checkout events; Output: ~726K line items (avg 3.6 items per order).
     columns:
       - name: event_id
         description: Event identifier (not unique at line item grain)

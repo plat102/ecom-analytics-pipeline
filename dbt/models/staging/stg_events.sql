@@ -40,7 +40,7 @@ events_cleaned AS (
     NULLIF(user_agent, '') AS user_agent,
     NULLIF(resolution, '') AS resolution,
 
-    -- Placeholder for device fields (to be enriched later if needed)
+    -- Placeholder for device fields (to be enriched later)
     CAST(NULL AS STRING) AS device_category,
     CAST(NULL AS STRING) AS browser,
     CAST(NULL AS STRING) AS os,

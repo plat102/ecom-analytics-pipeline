@@ -52,24 +52,14 @@ models:
   - name: dim_customer
     description: |
       Customer dimension table with user and device identifiers.
-      Type 2 SCD (version history tracking)
       Natural key: COALESCE(user_id_db, device_id) - handles both registered and guest users.
-      7.49M unique customers (95% anonymous guests), 826 with historical versions.
       Clustered by [customer_natural_key, is_current] for efficient lookups.
 
       Grain: 1 row = 1 customer version (customer at a point in time)
-      Actual rows: 7,492,335 (7.49M customers + 826 historical versions)
       Temporal backfill: Preserves email changes from raw events (0.01% have changes)
 
-      Data Quality Fix:
-      - GROUP BY deduplication ensures one row per customer_natural_key
-      - Eliminated 291K duplicate rows (from 7.78M to 7.49M)
-      - Issue: Same customer_natural_key had thousands of device_ids
-      - Solution: GROUP BY customer_natural_key with MAX() aggregation
-
       SCD Type 2 Features:
-      - Track email_address changes over time
-      - Customer journey analysis, cohort studies, retention tracking
+      - Track email_address version historical changes over time
       - New version created when email changes
       - valid_from/valid_to define version timeline
       - is_current flag identifies active version
@@ -116,14 +106,12 @@ models:
     description: |
       Location dimension table at GEOGRAPHY grain (country, region, city).
       Type 1 SCD (current state only).
-      Contains 54,578 unique geographic locations (NOT individual IPs).
       Clustered by [country_name, region_name] for efficient joins.
 
       Design:
       - Grain: 1 row = 1 unique (country, region, city) combination
       - Natural key: Composite (country_name, region_name, city_name)
       - IP addresses: Stored as degenerate dimension in fact_sales_order_line
-      - Performance: 300x faster joins vs IP grain (54K vs 3.24M rows)
     columns:
       - name: location_key
         description: Surrogate key (sequential integer)
@@ -161,7 +149,6 @@ models:
     description: |
       Product dimension table from Glamira catalog.
       Type 1 SCD (current state only).
-      Contains 18,938 jewelry products with pricing and metadata.
       Clustered by product_id for efficient joins with fact table.
     columns:
       - name: product_key
@@ -213,7 +200,7 @@ models:
     description: |
       Device junk dimension with device/browser/OS combinations.
       Type 1 SCD (current state only).
-      Small dimension with approximately 27 distinct combinations.
+      Small dimension with ~27 distinct combinations.
       Derived from user_agent parsing in intermediate layer.
     columns:
       - name: device_key
@@ -252,7 +239,6 @@ models:
     description: |
       Exchange rate dimension with currency conversion rates.
       Type 1 SCD (current state only).
-      Contains 42 currencies with rates to USD.
       Note: Uses hardcoded rates from seed file (can be replaced with API data).
     columns:
       - name: exchange_rate_key
@@ -276,7 +262,6 @@ models:
     description: |
       Fact table at LINE ITEM grain - one row per product per order.
       Grain: 1 row = 1 product in 1 checkout event.
-      Contains 27,553 line items from checkout events.
       Partitioned by event_date (daily), clustered by [store_id, product_key, customer_key].
       All measures are additive (quantity, line_total, line_total_usd).
       Joins to dim_customer current versions only (is_current = TRUE).
