@@ -1,0 +1,43 @@
+version: 2
+
+macros:
+  - name: generate_incremental_surrogate_key
+    description: |
+      Generate sequential surrogate keys for incremental models.
+
+      **Logic:**
+      - Assign ROW_NUMBER() to new rows (starting from 1)
+      - Add to MAX(existing_key) to continue sequence from existing table
+      - Ensures unique, sequential integer keys across incremental runs
+
+      **Example:**
+      ```sql
+      -- Existing table has customer_key 1-100
+      -- New batch has 5 customers
+
+      generate_incremental_surrogate_key('customer_natural_key', key_column='customer_key')
+
+      -- Results in:
+      -- ROW_NUMBER() generates: 1, 2, 3, 4, 5
+      -- MAX(customer_key) = 100
+      -- Final keys: 101, 102, 103, 104, 105
+      ```
+
+      **Usage:**
+      ```sql
+      -- SCD Type 2 dimension:
+      generate_incremental_surrogate_key('customer_natural_key', key_column='customer_key')
+
+      -- Fact table:
+      generate_incremental_surrogate_key('order_id, line_number', key_column='sale_key')
+      ```
+    arguments:
+      - name: order_by_columns
+        type: string
+        description: Column(s) to order by for ROW_NUMBER() (e.g., 'customer_natural_key' or 'created_at, id')
+      - name: target_table
+        type: relation
+        description: Table to get MAX key from (default is 'this' - current model)
+      - name: key_column
+        type: string
+        description: Name of the surrogate key column (default is 'id')
