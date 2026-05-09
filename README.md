@@ -208,5 +208,40 @@ PYTHONPATH=. poetry run python bigquery/cli/load.py --table events
 
 ## Data Transformation & Visualization
 
-*To be implemented in phase 3 (dbt + Looker Studio)*
+### dbt Data Models
+
+**Star Schema Dimensional Model**
+![dimensional_model_full.png](docs/diagrams/dimensional_model_full.png)
+
+
+**Model Architecture:**
+```bash
+cd dbt
+poetry run dbt run && dbt test  # Build & test all models
+```
+
+- **Staging**: `stg_events`, `stg_ip_locations`, `stg_products`
+- **Intermediate**: Business logic + data quality layer
+- **Core**: Dimensions + fact table
+  - Includes SCD Type 2 for `dim_customer` with email change tracking
+- **Mart**: Pre-aggregated for dashboards
+
+![dbt_lineage_graph_full.png](docs/diagrams/dbt_lineage_graph_full.png)
+**Key Features:** Incremental materialization, statistical outlier detection, performance optimization
+
+**Details:** [docs/dbt_models.md](docs/dbt_models.md)
+
+---
+
+### Looker Studio Dashboards
+
+**Interactive dashboards**
+
+| Dashboard | Purpose | Screenshot |
+|-----------|---------|------------|
+| **Revenue Overview** | Executive summary | [PDF](dashboard/snapshots/1_revenue-overview.pdf) |
+| **Product Performance** | Product catalog analysis | [PDF](dashboard/snapshots/2_product.pdf) |
+| **Customer Behavior** | Segmentation & retention | [PDF](dashboard/snapshots/3_customer.pdf) |
+
+**Details:** [docs/dashboards.md](docs/dashboards.md)
 
