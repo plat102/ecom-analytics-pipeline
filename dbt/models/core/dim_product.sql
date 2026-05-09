@@ -18,6 +18,7 @@ unknown_members AS (
     'Unknown' AS collection_name,
     'Unknown' AS gender,
     '-1' AS category_id,
+    'Unknown' AS category_name,
     'USD' AS currency_code,
     0.0 AS price,
     0.0 AS min_price,
@@ -36,6 +37,7 @@ unknown_members AS (
     'N/A' AS collection_name,
     'N/A' AS gender,
     '-2' AS category_id,
+    'N/A' AS category_name,
     'USD' AS currency_code,
     0.0 AS price,
     0.0 AS min_price,
@@ -59,6 +61,7 @@ stg_product__add_surrogate_key AS (
     collection_name,
     gender,
     category_id,
+    category_name,
 
     -- Pricing
     currency_code,

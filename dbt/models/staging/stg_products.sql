@@ -27,6 +27,7 @@ raw_product__rename AS (
     collection AS collection_name,
     gender,
     category AS category_id,
+    category_name,
 
     -- Price fields
     currency_code,
@@ -57,6 +58,7 @@ raw_product__cast_type AS (
     collection_name,
     gender,
     category_id,
+    category_name,
     currency_code,
 
     -- Price fields: cast to NUMERIC
@@ -86,11 +88,12 @@ raw_product__handle_null AS (
     NULLIF(gender, '') AS gender,
     NULLIF(currency_code, '') AS currency_code,
 
-    -- Category: convert '0' to NULL
+    -- Category: convert '0' to NULL, handle empty category_name
     CASE
       WHEN category_id = '0' THEN NULL
       ELSE NULLIF(category_id, '')
     END AS category_id,
+    NULLIF(category_name, '') AS category_name,
 
     -- Price fields (already NUMERIC)
     price,
@@ -110,14 +113,26 @@ raw_product__fix_invalid_value AS (
     -- Primary key
     product_id,
 
-    -- Product metadata (no changes)
+    -- Product metadata (clean gender, category, and product_type fields)
     url,
     product_name,
     sku,
-    product_type,
+    CASE
+      WHEN NULLIF(product_type, '') IN ('-1', '--_select_--') THEN 'Unknown'
+      WHEN NULLIF(product_type, '') IS NULL THEN 'Unknown'
+      ELSE NULLIF(product_type, '')
+    END AS product_type,
     collection_name,
-    gender,
+    CASE
+      WHEN NULLIF(gender, '') IN ('false', 'FALSE') THEN 'Unknown'
+      WHEN NULLIF(gender, '') IS NULL THEN 'Unknown'
+      ELSE NULLIF(gender, '')
+    END AS gender,
     category_id,
+    CASE
+      WHEN NULLIF(category_name, '') IS NULL THEN 'Unknown'
+      ELSE NULLIF(category_name, '')
+    END AS category_name,
     currency_code,
 
     -- Price fields: set invalid prices (<=0) to NULL
